@@ -1,0 +1,2529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBtIFdyvhh4VLEkL_lxhm5RcY9J4rjzkQE",
+    authDomain:        "tsusho-yotei-23f14.firebaseapp.com",
+    databaseURL:       "https://tsusho-yotei-23f14-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "tsusho-yotei-23f14",
+    storageBucket:     "tsusho-yotei-23f14.firebasestorage.app",
+    messagingSenderId: "828927613505",
+    appId:             "1:828927613505:web:6c949ff516bde4e76504c0"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  window._db            = db;
+  window._ref           = ref;
+  window._set           = set;
+  window._get           = get;
+  window._onValue       = onValue;
+  window._firebaseReady = true;
+
+  // アプリ初期化を通知
+  document.addEventListener('DOMContentLoaded', () => {
+    if (window._fbInit) window._fbInit();
+  });
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通所予定管理システム</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f0f4f8;--surface:#fff;--surface2:#f7fafc;--border:#dde3ec;
+  --text:#1a202c;--text2:#4a5568;--gray:#a0aec0;
+  --u-accent:#0ea5e9;--u-accent2:#0369a1;--u-light:#e0f2fe;
+  --a-accent:#7c3aed;--a-accent2:#5b21b6;--a-light:#ede9fe;
+  --green:#059669;--green-light:#d1fae5;
+  --amber:#d97706;--amber-light:#fef3c7;
+  --red:#dc2626;--red-light:#fee2e2;
+  --pink:#db2777;--pink-light:#fce7f3;
+  --shadow:0 2px 12px rgba(0,0,0,.08);--shadow-lg:0 8px 30px rgba(0,0,0,.14);
+  --radius:12px;
+}
+body{font-family:'Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+
+/* ===== MODAL BG ===== */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9990;overflow-y:auto;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:14px;}
+.modal-err{font-size:12px;color:var(--red);margin-bottom:8px;display:none;}
+.modal-err.show{display:block;}
+.modal input,.modal select,.modal textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;margin-bottom:10px;transition:border-color .15s;}
+.modal input:focus,.modal select:focus,.modal textarea:focus{outline:none;border-color:var(--a-accent);}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.modal label{font-size:12px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;}
+.modal-field{margin-bottom:8px;}
+.modal-btns{display:flex;gap:8px;margin-top:4px;}
+.uem-section-title{font-size:12px;font-weight:700;color:var(--a-accent);letter-spacing:.06em;text-transform:uppercase;padding:8px 0 6px;border-top:1px solid var(--border);margin-top:4px;margin-bottom:4px;}
+.uem-section-title:first-of-type{border-top:none;margin-top:0;}
+.btn-cancel{flex:1;padding:10px;border:1.5px solid var(--border);background:#fff;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;}
+.btn-ok{flex:2;padding:10px;background:linear-gradient(135deg,var(--a-accent),var(--a-accent2));color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;}
+.btn-danger{flex:1;padding:10px;background:var(--red);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;}
+
+/* ===== TOP SELECTOR ===== */
+#modeSelector{position:fixed;inset:0;background:linear-gradient(160deg,#0f172a 0%,#1e3a6e 50%,#312e81 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:36px;z-index:9999;}
+.mode-logo{text-align:center;color:#fff;}
+.mode-logo h1{font-size:20px;font-weight:900;letter-spacing:.06em;margin-bottom:6px;}
+.mode-logo p{font-size:12px;opacity:.6;}
+.mode-cards{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;padding:0 20px;}
+.mode-card{width:200px;border-radius:16px;padding:28px 20px;cursor:pointer;border:2px solid transparent;transition:transform .2s,box-shadow .2s;text-align:center;}
+.mode-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.35);}
+.mode-card.uc{background:linear-gradient(145deg,#0c4a6e,#0369a1);box-shadow:0 8px 24px rgba(3,105,161,.4);}
+.mode-card.ac{background:linear-gradient(145deg,#2e1065,#6d28d9);box-shadow:0 8px 24px rgba(109,40,217,.4);}
+.mode-icon{font-size:44px;margin-bottom:14px;}
+.mode-card h2{color:#fff;font-size:16px;font-weight:700;margin-bottom:6px;}
+.mode-card p{color:rgba(255,255,255,.7);font-size:12px;line-height:1.6;}
+.mode-arrow{margin-top:14px;color:rgba(255,255,255,.5);font-size:18px;transition:color .2s,transform .2s;}
+.mode-card:hover .mode-arrow{color:#fff;transform:translateX(4px);}
+
+/* ===== SCREEN ===== */
+.screen{min-height:100vh;flex-direction:column;display:none;}
+
+/* ===== HEADER ===== */
+.app-header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.15);}
+.app-header h1{font-size:14px;font-weight:700;color:#fff;letter-spacing:.04em;}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.user-screen .app-header{background:linear-gradient(135deg,#0369a1,#0ea5e9);}
+.admin-screen .app-header{background:linear-gradient(135deg,#4c1d95,#7c3aed);}
+.btn-hdr{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.35);color:#fff;padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;transition:background .15s;}
+.btn-hdr:hover{background:rgba(255,255,255,.25);}
+
+/* ===== USER SCREEN ===== */
+.user-body{flex:1;padding:16px;max-width:500px;margin:0 auto;width:100%;}
+.u-card{background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
+.u-card-title{font-size:12px;font-weight:700;color:var(--u-accent2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+.search-wrap{position:relative;margin-bottom:10px;}
+.search-wrap input{width:100%;padding:10px 12px 10px 36px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;transition:border-color .15s;}
+.search-wrap input:focus{outline:none;border-color:var(--u-accent);}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;}
+.user-dropdown{border:1.5px solid var(--border);border-radius:8px;overflow:hidden;max-height:260px;overflow-y:auto;display:none;}
+.user-dropdown.open{display:block;}
+.user-dropdown::-webkit-scrollbar{width:4px;}
+.user-dropdown::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.dropdown-item{padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border);transition:background .12s;}
+.dropdown-item:last-child{border-bottom:none;}
+.dropdown-item:hover{background:var(--u-light);}
+.di-no{font-size:11px;color:var(--gray);min-width:24px;}
+.di-name{font-size:13px;font-weight:500;flex:1;}
+.di-badge{font-size:11px;padding:2px 6px;border-radius:10px;background:var(--u-light);color:var(--u-accent2);}
+.sel-bar{display:none;background:var(--u-light);border-radius:8px;padding:9px 12px;margin-bottom:12px;align-items:center;gap:9px;}
+.sel-bar.show{display:flex;}
+.sub-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--u-accent),var(--u-accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;}
+.sub-name{font-weight:700;font-size:14px;flex:1;}
+.btn-change{font-size:12px;color:var(--u-accent2);cursor:pointer;border:none;background:none;font-family:inherit;text-decoration:underline;}
+.month-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.month-nav span{font-size:15px;font-weight:700;}
+.btn-month{width:30px;height:30px;border:1.5px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:border-color .15s;}
+.btn-month:hover{border-color:var(--u-accent);}
+.u-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.u-chip{border-radius:8px;padding:9px 6px;text-align:center;}
+.u-chip-num{font-size:20px;font-weight:900;line-height:1;margin-bottom:2px;}
+.u-chip-label{font-size:11px;}
+.chip-blue{background:var(--u-light);color:var(--u-accent2);}
+.chip-green{background:var(--green-light);color:var(--green);}
+.chip-pink{background:var(--pink-light);color:var(--pink);}
+.u-day-list{display:flex;flex-direction:column;gap:5px;}
+.u-day-row{display:grid;grid-template-columns:54px 1fr 1fr auto;align-items:center;gap:6px;padding:7px 9px;border-radius:7px;border:1.5px solid var(--border);background:var(--surface2);transition:border-color .15s;}
+.u-day-row.has-data{border-color:var(--u-accent);background:var(--u-light);}
+.u-tr-sel{width:100%;padding:6px 5px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:#fff;cursor:pointer;transition:border-color .15s;}
+.u-tr-sel:focus{outline:none;border-color:var(--u-accent);}
+.u-day-label{font-size:13px;font-weight:500;}
+.dow-sun{color:var(--red);}
+.dow-sat{color:var(--u-accent);}
+.u-sel{width:100%;padding:6px 7px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:#fff;cursor:pointer;transition:border-color .15s;}
+.u-sel:focus{outline:none;border-color:var(--u-accent);}
+.pickup-tag{font-size:11px;background:var(--pink-light);color:var(--pink);padding:2px 5px;border-radius:4px;white-space:nowrap;display:none;}
+.pickup-tag.show{display:block;}
+.legend-list{display:flex;flex-wrap:wrap;gap:5px;}
+.lp{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;}
+.lp-maru{background:var(--u-light);color:var(--u-accent2);}
+.lp-tsuu{background:#dcfce7;color:#166534;}
+.lp-a{background:#fef3c7;color:#92400e;}
+.lp-p{background:#f3e5f5;color:#6a1b9a;}
+.lp-zai{background:#f0fdf4;color:#14532d;}
+.lp-kyu{background:#fee2e2;color:#991b1b;}
+.btn-user-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--u-accent),var(--u-accent2));color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;box-shadow:0 4px 14px rgba(3,105,161,.3);transition:transform .15s;letter-spacing:.04em;}
+.btn-user-save:hover{transform:translateY(-1px);}
+
+/* ===== ADMIN SCREEN ===== */
+.admin-layout{display:flex;height:calc(100vh - 56px);}
+.admin-sidebar{width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.a-sidebar-top{padding:10px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px;}
+.a-search{width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;transition:border-color .15s;}
+.a-search:focus{outline:none;border-color:var(--a-accent);}
+.filter-sel{width:100%;padding:5px 6px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:#fff;cursor:pointer;}
+.a-list-count{font-size:11px;color:var(--gray);}
+.a-user-list{flex:1;overflow-y:auto;padding:3px 0;}
+.a-user-list::-webkit-scrollbar{width:4px;}
+.a-user-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+.a-user-item{padding:7px 10px;cursor:pointer;display:flex;align-items:center;gap:6px;border-left:3px solid transparent;transition:all .12s;}
+.a-user-item:hover{background:var(--a-light);}
+.a-user-item.active{background:var(--a-light);border-left-color:var(--a-accent);}
+.a-u-no{font-size:11px;color:var(--gray);min-width:22px;}
+.a-u-name{font-size:13px;font-weight:500;flex:1;}
+.a-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;}
+.a-dot.has{background:var(--green);}
+.admin-main{flex:1;overflow-y:auto;padding:16px 18px;}
+.a-welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:10px;color:var(--gray);}
+.wi{font-size:40px;opacity:.35;}
+.a-section{background:var(--surface);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);margin-bottom:12px;}
+.a-section-title{font-size:12px;font-weight:700;color:var(--a-accent);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.a-user-top{background:var(--surface);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;}
+.a-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a-accent),var(--a-accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;flex-shrink:0;}
+.a-user-info h2{font-size:16px;font-weight:700;margin-bottom:3px;}
+.a-badges{display:flex;gap:4px;flex-wrap:wrap;}
+.a-badge{font-size:11px;padding:2px 7px;border-radius:20px;font-weight:500;}
+.ab-dis{background:#e0e7ff;color:#3730a3;}
+.ab-trns{background:var(--pink-light);color:var(--pink);}
+.ab-lmt{background:var(--amber-light);color:#92400e;}
+.a-overview{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+.a-stat{background:var(--surface);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow);text-align:center;}
+.a-stat-num{font-size:24px;font-weight:900;line-height:1;margin-bottom:2px;}
+.a-stat-label{font-size:11px;color:var(--gray);}
+.s-total .a-stat-num{color:var(--a-accent);}
+.s-meal .a-stat-num{color:var(--green);}
+.s-pickup .a-stat-num{color:var(--pink);}
+.s-rate .a-stat-num{color:var(--amber);}
+
+/* ===== TABS ===== */
+.tabs{display:flex;background:var(--surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:12px;flex-wrap:wrap;}
+.tab-btn{flex:1;padding:9px 6px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;color:var(--gray);border-bottom:3px solid transparent;transition:all .12s;white-space:nowrap;}
+.tab-btn.active{color:var(--a-accent);border-bottom-color:var(--a-accent);background:var(--a-light);font-weight:700;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* ===== CALENDAR GRID ===== */
+.cal-header{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:3px;}
+.cal-dn{text-align:center;font-size:11px;color:var(--gray);font-weight:700;padding:3px 0;}
+.cal-dn.sun{color:var(--red);}
+.cal-dn.sat{color:var(--a-accent);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cal-cell{border:1.5px solid var(--border);border-radius:6px;min-height:90px;padding:4px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--surface2);position:relative;}
+.cal-cell.has-data{border-color:var(--a-accent);background:var(--a-light);}
+.cal-tr-badge{font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;margin-top:1px;width:100%;text-align:center;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-tr-badge.tr-souei{background:var(--pink-light);color:var(--pink);}
+.cal-tr-badge.tr-walk{background:#dcfce7;color:#166534;}
+.cal-tr-badge.tr-bike{background:#fef3c7;color:#92400e;}
+.cal-tr-badge.tr-car{background:#ede9fe;color:#5b21b6;}
+.cal-tr-badge.tr-pub{background:#e0f2fe;color:#0369a1;}
+.cal-tr-badge.tr-other{background:var(--surface2);color:var(--gray);}
+.cal-popover{
+  position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  z-index:500;background:#fff;border:1.5px solid var(--a-accent);
+  border-radius:10px;padding:10px 12px;box-shadow:0 4px 20px rgba(0,0,0,.18);
+  min-width:200px;display:none;
+}
+.cal-popover.open{display:block;}
+.cal-popover label{font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;}
+.cal-popover select,.cal-popover input{
+  width:100%;padding:5px 7px;border:1.5px solid var(--border);border-radius:6px;
+  font-size:12px;font-family:inherit;margin-bottom:8px;
+}
+.cal-popover select:focus,.cal-popover input:focus{outline:none;border-color:var(--a-accent);}
+.popover-close{
+  position:absolute;top:6px;right:8px;background:none;border:none;
+  font-size:14px;cursor:pointer;color:var(--gray);
+}
+.cal-time-row{font-size:9px;color:var(--text2);line-height:1.5;width:100%;text-align:center;margin-top:1px;}
+.cal-time-in{color:var(--u-accent2);font-weight:700;}
+.cal-time-out{color:var(--green);font-weight:700;}
+.cal-cell.weekend{background:#f8f9fc;}
+.cal-cell.closed{background:#f1f3f8;opacity:.5;pointer-events:none;}
+.cal-cell.has-data{border-color:var(--a-accent);background:var(--a-light);}
+.cal-date{font-size:11px;font-weight:700;}
+.cal-date.sun{color:var(--red);}
+.cal-date.sat{color:var(--a-accent);}
+.cal-sel{width:100%;font-size:10px;padding:2px;border:1px solid var(--border);border-radius:4px;background:#fff;font-family:inherit;cursor:pointer;}
+.cal-sel:focus{outline:none;border-color:var(--a-accent);}
+
+/* ===== MONTHLY TABLE ===== */
+.monthly-wrap{overflow-x:auto;}
+.monthly-table{border-collapse:collapse;font-size:12px;width:100%;}
+.monthly-table th{background:var(--surface2);padding:6px 8px;border:1px solid var(--border);font-weight:700;color:var(--text2);text-align:center;white-space:nowrap;position:sticky;top:0;}
+.monthly-table td{padding:5px 7px;border:1px solid var(--border);text-align:center;white-space:nowrap;}
+.monthly-table tr:hover td{background:#fafaff;}
+.td-name{text-align:left !important;font-weight:500;min-width:90px;}
+.sc{display:inline-block;font-size:11px;font-weight:700;padding:2px 5px;border-radius:4px;}
+.sc-maru{background:var(--u-light);color:var(--u-accent2);}
+.sc-tsuu{background:#dcfce7;color:#166534;}
+.sc-a{background:#fef3c7;color:#92400e;}
+.sc-p{background:#f3e5f5;color:#6a1b9a;}
+.sc-zai{background:#f0fdf4;color:#14532d;}
+.sc-kyu{background:#fee2e2;color:#991b1b;}
+.sc-meal{background:var(--green-light);color:var(--green);}
+.sc-pickup{background:var(--pink-light);color:var(--pink);}
+
+/* ===== DAILY VIEW ===== */
+.daily-wrap{overflow-x:auto;}
+.daily-table{border-collapse:collapse;font-size:12px;width:100%;}
+.daily-table th{background:var(--surface2);padding:6px 8px;border:1px solid var(--border);font-weight:700;color:var(--text2);text-align:center;white-space:nowrap;}
+.daily-table td{padding:5px 8px;border:1px solid var(--border);text-align:center;}
+.daily-table tr:nth-child(even) td{background:var(--surface2);}
+
+/* ===== BUSINESS DIARY ===== */
+.diary-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.diary-nav span{font-size:15px;font-weight:700;}
+.diary-page{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-width:780px;margin:0 auto;}
+.diary-title{text-align:center;font-size:18px;font-weight:900;margin-bottom:4px;letter-spacing:.1em;}
+.diary-date{text-align:center;font-size:13px;color:var(--text2);margin-bottom:16px;}
+.diary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
+.diary-box{border:2px solid var(--border);border-radius:8px;overflow:hidden;}
+.diary-box-title{background:var(--surface2);padding:7px 12px;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);}
+.diary-box-body{padding:8px 10px;}
+.diary-user-list{display:flex;flex-direction:column;gap:3px;}
+.diary-user-row{display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:12px;}
+.diary-user-row:last-child{border-bottom:none;}
+.d-name{flex:1;font-weight:500;}
+.d-status{font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.diary-summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.diary-summary-cell{background:var(--surface2);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--border);}
+.ds-num{font-size:22px;font-weight:900;}
+.ds-label{font-size:11px;color:var(--gray);}
+.diary-pickup-list{display:flex;flex-direction:column;gap:3px;}
+.diary-pickup-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:12px;}
+.d-dir{font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;white-space:nowrap;}
+.d-dir.in{background:var(--green-light);color:var(--green);}
+.d-dir.out{background:var(--u-light);color:var(--u-accent2);}
+.btn-print{padding:9px 20px;background:linear-gradient(135deg,var(--a-accent),var(--a-accent2));color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;}
+.btn-save-row{display:flex;justify-content:flex-end;gap:8px;padding:4px 0 12px;}
+.btn-a-save{padding:9px 24px;background:linear-gradient(135deg,var(--a-accent),var(--a-accent2));color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:transform .12s;}
+.btn-a-save:hover{transform:translateY(-1px);}
+.btn-a-out{padding:9px 18px;background:#fff;color:var(--a-accent);border:1.5px solid var(--a-accent);border-radius:7px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:background .12s;}
+.btn-a-out:hover{background:var(--a-light);}
+
+/* ===== USER MANAGEMENT ===== */
+.user-mgmt-table{border-collapse:collapse;font-size:12px;width:100%;}
+.user-mgmt-table th{background:var(--surface2);padding:7px 10px;border:1px solid var(--border);font-weight:700;color:var(--text2);text-align:center;white-space:nowrap;}
+.user-mgmt-table td{padding:6px 9px;border:1px solid var(--border);white-space:nowrap;}
+.user-mgmt-table tr:hover td{background:#fafaff;}
+.btn-edit{font-size:11px;padding:3px 8px;border:1px solid var(--a-accent);color:var(--a-accent);border-radius:4px;background:#fff;cursor:pointer;font-family:inherit;}
+.btn-del{font-size:11px;padding:3px 8px;border:1px solid var(--red);color:var(--red);border-radius:4px;background:#fff;cursor:pointer;font-family:inherit;}
+.btn-add-user{padding:9px 20px;background:linear-gradient(135deg,var(--green),#047857);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;}
+.udet-box{background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);}
+.udet-title{font-size:11px;font-weight:700;color:var(--a-accent);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;}
+.udet-row{display:flex;gap:6px;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border);}
+.udet-row:last-child{border-bottom:none;}
+.udet-lbl{color:var(--gray);min-width:72px;flex-shrink:0;font-weight:500;}
+
+/* ===== TOAST ===== */
+.toast{position:fixed;bottom:18px;right:18px;background:#1a202c;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);transform:translateY(60px);opacity:0;transition:all .28s;z-index:9998;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* ===== SHUTTLE TABLE ===== */
+.sh-car-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:var(--amber-light);color:var(--amber);}
+.sh-time-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 6px;border-radius:4px;background:var(--u-light);color:var(--u-accent2);}
+.sh-card{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+.sh-card-head{padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.sh-card-head h3{font-size:14px;font-weight:700;flex:1;}
+.sh-card-body{padding:10px 14px;}
+.sh-route-row{display:flex;align-items:center;gap:0;margin-bottom:6px;}
+.sh-node{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:80px;}
+.sh-node-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid;}
+.sh-node-label{font-size:10px;color:var(--text2);text-align:center;max-width:80px;word-break:break-all;}
+.sh-arrow{flex:1;height:2px;background:var(--border);position:relative;min-width:20px;}
+.sh-arrow::after{content:'▶';position:absolute;right:-6px;top:-8px;font-size:12px;color:var(--gray);}
+.sh-table{width:100%;border-collapse:collapse;font-size:12px;}
+.sh-table th{background:var(--surface2);padding:6px 10px;border:1px solid var(--border);font-weight:700;color:var(--text2);text-align:center;white-space:nowrap;}
+.sh-table td{padding:5px 9px;border:1px solid var(--border);text-align:center;}
+.sh-table tr:hover td{background:#fafaff;}
+.sh-table .td-name{text-align:left;font-weight:500;}
+.sh-daily-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.sh-car-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.sh-car-tab{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:#fff;cursor:pointer;font-size:12px;font-weight:600;font-family:inherit;transition:all .15s;}
+.sh-car-tab.active{background:var(--amber);border-color:var(--amber);color:#fff;}
+.sh-print-btn{padding:7px 16px;background:linear-gradient(135deg,var(--amber),#b45309);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer;}
+.sh-section-label{font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;}
+.sh-empty{text-align:center;padding:20px;color:var(--gray);font-size:13px;}
+/* ===== PRINT ===== */
+@media print {
+  body > *:not(#printTarget){display:none !important;}
+  #printTarget{display:block !important;position:static;}
+  .no-print{display:none !important;}
+  .diary-page{box-shadow:none;border:1px solid #ccc;}
+}
+#printTarget{display:none;}
+
+@media(max-width:700px){
+  .admin-sidebar{width:180px;}
+  .a-overview{grid-template-columns:repeat(2,1fr);}
+  .diary-grid{grid-template-columns:1fr;}
+  .diary-summary-row{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<!-- MODE SELECTOR -->
+<div id="modeSelector">
+  <div class="mode-logo">
+    <h1>📋 通所予定管理システム</h1>
+    <p>画面を選択してください</p>
+  </div>
+  <div class="mode-cards">
+    <div class="mode-card uc" onclick="openUserScreen()">
+      <div class="mode-icon">🙋</div>
+      <h2>利用者入力画面</h2>
+      <p>通所・食事・送迎の予定を入力します</p>
+      <div class="mode-arrow">→</div>
+    </div>
+    <div class="mode-card ac" onclick="openAdminModal()">
+      <div class="mode-icon">🔐</div>
+      <h2>管理者画面</h2>
+      <p>全利用者の予定確認・修正・業務日誌・CSV出力</p>
+      <div class="mode-arrow">→</div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PW MODAL -->
+<div class="modal-bg" id="adminModal">
+  <div class="modal">
+    <h3>🔐 管理者認証</h3>
+    <p>管理者パスワードを入力してください</p>
+    <p class="modal-err" id="modalErr">パスワードが違います</p>
+    <input type="password" id="adminPwInput" placeholder="パスワード" onkeydown="if(event.key==='Enter')checkAdminPw()">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAdminModal()">キャンセル</button>
+      <button class="btn-ok" onclick="checkAdminPw()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER EDIT MODAL -->
+<div class="modal-bg" id="userEditModal">
+  <div class="modal" style="max-width:560px;">
+    <h3 id="uemTitle">利用者を追加</h3>
+
+    <div class="uem-section-title">📋 基本情報</div>
+    <div class="modal-row">
+      <div class="modal-field"><label>NO</label><input id="uem-no" type="number" placeholder="番号"></div>
+      <div class="modal-field"><label>名前 ＊</label><input id="uem-name" placeholder="例：山田　太郎"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>障害種別</label>
+        <select id="uem-dis"><option>身体</option><option>精神</option><option>知的</option><option>発達</option><option>その他</option></select>
+      </div>
+      <div class="modal-field"><label>障がい名</label><input id="uem-disname" placeholder="例：統合失調症"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>通所方法</label>
+        <select id="uem-transport"><option>送迎</option><option>徒歩</option><option>自転車</option><option>自家用車</option><option>公共交通機関</option></select>
+      </div>
+      <div class="modal-field"><label>算定日数</label>
+        <select id="uem-limit"><option>月の日数ー8日</option><option>月10日</option><option>月14日</option><option>月15日</option></select>
+      </div>
+    </div>
+    <div class="uem-section-title">🚐 送迎情報</div>
+    <div class="modal-row">
+      <div class="modal-field"><label>送迎ルート名</label><input id="uem-routeName" placeholder="例：Aルート・北エリア"></div>
+      <div class="modal-field"><label>送迎車（行き／帰り共通）</label><input id="uem-carIn" placeholder="例：1号車"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>帰り専用車両（異なる場合）</label><input id="uem-carOut" placeholder="空欄=行きと同じ"></div>
+      <div class="modal-field"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>お迎え予定時刻（行き）</label><input id="uem-pickupTime" type="time"></div>
+      <div class="modal-field"><label>お送り予定時刻（帰り）</label><input id="uem-dropTime" type="time"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>乗車順（行き）</label><input id="uem-orderIn" type="number" placeholder="例：1" min="1"></div>
+      <div class="modal-field"><label>乗車順（帰り）</label><input id="uem-orderOut" type="number" placeholder="例：1" min="1"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>目標通所日数</label><input id="uem-target" type="number" placeholder="例：21"></div>
+      <div class="modal-field"><label>契約日</label><input id="uem-contract" type="date"></div>
+    </div>
+
+    <div class="uem-section-title">📞 連絡先情報</div>
+    <div class="modal-row">
+      <div class="modal-field"><label>本人電話番号</label><input id="uem-tel" type="tel" placeholder="例：090-0000-0000"></div>
+      <div class="modal-field"><label>緊急連絡先（氏名・続柄）</label><input id="uem-emgname" placeholder="例：山田花子（母）"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>緊急連絡先電話番号</label><input id="uem-emgtel" type="tel" placeholder="例：090-1111-2222"></div>
+      <div class="modal-field"><label>自宅住所</label><input id="uem-address" placeholder="例：大阪府○○市…"></div>
+    </div>
+
+    <div class="uem-section-title">🏢 関係機関情報（最大4件）</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 4px;background:var(--surface2);">
+        <div style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:6px;">関係機関 1</div>
+        <div class="modal-row">
+          <div class="modal-field"><label>事業所名</label><input id="uem-agency1" placeholder="例：〇〇相談支援事業所"></div>
+          <div class="modal-field"><label>担当者名</label><input id="uem-agstaff1" placeholder="例：鈴木 一郎"></div>
+        </div>
+        <div class="modal-field"><label>担当者電話番号</label><input id="uem-agtel1" type="tel" placeholder="例：06-0000-0000"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 4px;background:var(--surface2);">
+        <div style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:6px;">関係機関 2</div>
+        <div class="modal-row">
+          <div class="modal-field"><label>事業所名</label><input id="uem-agency2" placeholder="例：〇〇相談支援事業所"></div>
+          <div class="modal-field"><label>担当者名</label><input id="uem-agstaff2" placeholder="例：鈴木 一郎"></div>
+        </div>
+        <div class="modal-field"><label>担当者電話番号</label><input id="uem-agtel2" type="tel" placeholder="例：06-0000-0000"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 4px;background:var(--surface2);">
+        <div style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:6px;">関係機関 3</div>
+        <div class="modal-row">
+          <div class="modal-field"><label>事業所名</label><input id="uem-agency3" placeholder="例：〇〇相談支援事業所"></div>
+          <div class="modal-field"><label>担当者名</label><input id="uem-agstaff3" placeholder="例：鈴木 一郎"></div>
+        </div>
+        <div class="modal-field"><label>担当者電話番号</label><input id="uem-agtel3" type="tel" placeholder="例：06-0000-0000"></div>
+      </div>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px 10px 4px;background:var(--surface2);">
+        <div style="font-size:11px;font-weight:700;color:var(--gray);margin-bottom:6px;">関係機関 4</div>
+        <div class="modal-row">
+          <div class="modal-field"><label>事業所名</label><input id="uem-agency4" placeholder="例：〇〇相談支援事業所"></div>
+          <div class="modal-field"><label>担当者名</label><input id="uem-agstaff4" placeholder="例：鈴木 一郎"></div>
+        </div>
+        <div class="modal-field"><label>担当者電話番号</label><input id="uem-agtel4" type="tel" placeholder="例：06-0000-0000"></div>
+      </div>
+    </div>
+
+    <div class="uem-section-title">🍽️ 食事・アレルギー情報</div>
+    <div class="modal-row">
+      <div class="modal-field"><label>アレルギーの有無</label>
+        <select id="uem-allergy"><option value="なし">なし</option><option value="あり">あり</option></select>
+      </div>
+      <div class="modal-field"><label>アレルギーの内容</label><input id="uem-allergydetail" placeholder="例：卵、小麦"></div>
+    </div>
+    <div class="modal-field"><label>食事提供時の注意点</label>
+      <textarea id="uem-mealnote" rows="2" placeholder="例：刻み食、とろみ付き等" style="resize:vertical;"></textarea>
+    </div>
+
+    <div class="modal-btns" style="margin-top:10px;">
+      <button class="btn-cancel" onclick="closeUserEditModal()">キャンセル</button>
+      <button class="btn-danger" id="uemDelBtn" onclick="deleteUser()" style="display:none;">削除</button>
+      <button class="btn-ok" onclick="saveUserEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- USER SCREEN -->
+<div class="screen user-screen" id="userScreen" style="display:none;">
+  <div class="app-header">
+    <h1>📋 通所予定入力</h1>
+    <div class="hdr-right">
+      <button class="btn-hdr" onclick="openShuttleView()" id="myShuttleBtn" style="display:none;">🚐 自分の送迎確認</button>
+      <button class="btn-hdr" onclick="backToSelector()">← 戻る</button>
+    </div>
+  </div>
+  <div class="user-body">
+    <div class="u-card" id="uLoginCard">
+      <div class="u-card-title">👤 お名前を選択してください</div>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="uSearchInput" placeholder="名前で検索..." oninput="filterUDropdown()" onfocus="openUDropdown()" onblur="setTimeout(closeUDropdown,180)">
+      </div>
+      <div class="user-dropdown" id="uDropdown"></div>
+    </div>
+    <div class="sel-bar" id="selBar">
+      <div class="sub-av" id="selAv"></div>
+      <div class="sub-name" id="selName"></div>
+      <button class="btn-change" onclick="changeUUser()">変更</button>
+    </div>
+    <div id="uInputArea" style="display:none;">
+      <div class="u-card">
+        <div class="u-card-title">📌 入力コード</div>
+        <div class="legend-list">
+          <span class="lp lp-maru">通〇 昼食あり</span><span class="lp lp-tsuu">通 昼食なし</span>
+          <span class="lp lp-a">通A 半日</span><span class="lp lp-p">通P 半日昼無</span>
+          <span class="lp lp-zai">在宅</span><span class="lp lp-kyu">欠 欠席</span>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;color:var(--u-accent2);margin-bottom:6px;">🚐 通所方法（日ごとに選択）</div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.8;">
+            各日の右側のドロップダウンで、その日の通所方法を選択してください。<br>
+            基本の通所方法と異なる場合のみ変更してください。
+          </div>
+        </div>
+      </div>
+      <!-- My Shuttle Info -->
+      <div class="u-card" id="myShuttleCard" style="display:none;">
+        <div class="u-card-title">🚐 送迎情報</div>
+        <div id="myShuttleInfo"></div>
+        <button style="margin-top:8px;font-size:12px;color:var(--u-accent2);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;"
+          onclick="window.open('送迎予定表.html','_blank')">送迎予定表を開く →</button>
+      </div>
+      <div class="u-card">
+        <div class="u-card-title">📊 サマリー</div>
+        <div class="u-summary">
+          <div class="u-chip chip-blue"><div class="u-chip-num" id="uSumT">0</div><div class="u-chip-label">通所日数</div></div>
+          <div class="u-chip chip-green"><div class="u-chip-num" id="uSumM">0</div><div class="u-chip-label">昼食あり</div></div>
+          <div class="u-chip chip-pink"><div class="u-chip-num" id="uSumP">0</div><div class="u-chip-label">送迎日数</div></div>
+        </div>
+      </div>
+      <div class="u-card">
+        <div class="u-card-title"><span>📅 予定入力</span></div>
+        <div class="month-nav">
+          <button class="btn-month" onclick="uChangeMonth(-1)">◀</button>
+          <span id="uMonthLabel"></span>
+          <button class="btn-month" onclick="uChangeMonth(1)">▶</button>
+        </div>
+        <div class="u-day-list" id="uDayList"></div>
+      </div>
+      <button class="btn-user-save" onclick="saveUSchedule()">✅ この内容で保存する</button>
+      <div style="height:20px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN SCREEN -->
+<div class="screen admin-screen" id="adminScreen" style="display:none; flex-direction:column;">
+  <div class="app-header">
+    <h1>🔐 管理者画面</h1>
+    <div class="hdr-right">
+      <button class="btn-hdr" onclick="exportAllCSV()">📥 CSV出力</button>
+      <button class="btn-hdr" onclick="backToSelector()">← 戻る</button>
+    </div>
+  </div>
+  <div class="admin-layout">
+    <!-- Sidebar -->
+    <div class="admin-sidebar">
+      <div class="a-sidebar-top">
+        <input type="text" class="a-search" id="aSearchInput" placeholder="名前で検索..." oninput="filterAList()">
+        <select class="filter-sel" id="aFilterTr" onchange="filterAList()">
+          <option value="">通所方法 全て</option>
+          <option>送迎</option><option>徒歩</option><option>自転車</option>
+          <option>自家用車</option><option>公共交通機関</option>
+        </select>
+        <div class="a-list-count"><span id="aListCount">0</span>名</div>
+      </div>
+      <div class="a-user-list" id="aUserList"></div>
+    </div>
+    <!-- Main -->
+    <div class="admin-main" id="adminMain">
+      <div class="a-welcome" id="aWelcome">
+        <div class="wi">📊</div>
+        <p><strong>左のリストから利用者を選択</strong></p>
+        <p style="font-size:12px;">または下のメニューから操作してください</p>
+        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+          <button class="btn-a-save" onclick="switchTopTab('diary')">📓 業務日誌</button>
+          <button class="btn-a-save" style="background:linear-gradient(135deg,var(--green),#047857);" onclick="switchTopTab('monthly')">📊 月次一覧</button>
+          <button class="btn-a-save" style="background:linear-gradient(135deg,var(--amber),#b45309);" onclick="switchTopTab('usermgmt')">👥 利用者管理</button>
+        </div>
+        <div id="aGlobalStats" style="margin-top:20px;width:100%;max-width:400px;"></div>
+      </div>
+
+      <!-- Top-level tabs (shown always) -->
+      <div id="aTopArea">
+        <div class="tabs" id="aTopTabs" style="display:none;">
+          <button class="tab-btn" onclick="switchTopTab('user')">👤 利用者別</button>
+          <button class="tab-btn" onclick="switchTopTab('monthly')">📊 月次一覧</button>
+          <button class="tab-btn" onclick="switchTopTab('diary')">📓 業務日誌</button>
+          <button class="tab-btn" onclick="switchTopTab('daily')">📈 日別集計</button>
+          <button class="tab-btn" onclick="switchTopTab('shuttle')">🚐 送迎表</button>
+          <button class="tab-btn" onclick="switchTopTab('staffmgmt')">👨‍✈️ スタッフ管理</button>
+          <button class="tab-btn" onclick="switchTopTab('usermgmt')">👥 利用者管理</button>
+        </div>
+
+        <!-- User tab -->
+        <div class="tab-content" id="ttab-user">
+          <div id="aUserDetail">
+            <div class="a-user-top">
+              <div class="a-avatar" id="aAvatar"></div>
+              <div class="a-user-info"><h2 id="aPanelName"></h2><div class="a-badges" id="aPanelBadges"></div></div>
+            </div>
+            <div class="a-overview">
+              <div class="a-stat s-total"><div class="a-stat-num" id="aSumT">0</div><div class="a-stat-label">通所予定</div></div>
+              <div class="a-stat s-meal"><div class="a-stat-num" id="aSumM">0</div><div class="a-stat-label">昼食あり</div></div>
+              <div class="a-stat s-pickup"><div class="a-stat-num" id="aSumP">0</div><div class="a-stat-label">送迎日数</div></div>
+              <div class="a-stat s-rate"><div class="a-stat-num" id="aSumTgt">-</div><div class="a-stat-label">目標日数</div></div>
+            </div>
+            <div class="tabs">
+              <button class="tab-btn active" onclick="switchUserTab('cal')">📅 カレンダー</button>
+              <button class="tab-btn" onclick="switchUserTab('list')">📋 一覧</button>
+            </div>
+            <div class="tab-content active" id="utab-cal">
+              <div class="a-section">
+                <div class="a-section-title">
+                  <span>📅 予定編集</span>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <button class="btn-month" onclick="aChangeMonth(-1)">◀</button>
+                    <span id="aMonthLabel" style="font-size:13px;font-weight:700;color:var(--text);"></span>
+                    <button class="btn-month" onclick="aChangeMonth(1)">▶</button>
+                  </div>
+                </div>
+                <div class="cal-header" id="aCalHeader"></div>
+                <div class="cal-grid" id="aCalGrid"></div>
+              </div>
+              <div class="btn-save-row">
+                <button class="btn-a-out" onclick="exportSingleCSV()">📥 個別CSV</button>
+                <button class="btn-a-save" onclick="saveASchedule()">✅ 保存</button>
+              </div>
+            </div>
+            <div class="tab-content" id="utab-list">
+              <div class="a-section">
+                <div class="a-section-title">📋 入力済み予定一覧</div>
+                <div id="aListContent"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly tab -->
+        <div class="tab-content" id="ttab-monthly">
+          <div class="a-section">
+            <div class="a-section-title">
+              <span>📊 月次一覧</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button class="btn-month" onclick="mChangeMonth(-1)">◀</button>
+                <span id="mMonthLabel" style="font-size:13px;font-weight:700;color:var(--text);"></span>
+                <button class="btn-month" onclick="mChangeMonth(1)">▶</button>
+                <select id="mViewMode" onchange="renderMonthlyTable()" style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:5px;font-family:inherit;">
+                  <option value="tsuu">通所区分</option>
+                  <option value="meal">食事予定</option>
+                  <option value="pickup">送迎予定</option>
+                </select>
+              </div>
+            </div>
+            <div class="monthly-wrap">
+              <div id="monthlyTableWrap"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diary tab -->
+        <div class="tab-content" id="ttab-diary">
+          <div class="diary-nav no-print">
+            <button class="btn-month" onclick="diaryChangeDay(-1)">◀ 前日</button>
+            <span id="diaryDateLabel" style="font-size:15px;font-weight:700;"></span>
+            <button class="btn-month" onclick="diaryChangeDay(1)">翌日 ▶</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px;" class="no-print">
+            <button class="btn-print" onclick="printDiary()">🖨️ 印刷</button>
+          </div>
+          <div id="diaryContent"></div>
+        </div>
+
+        <!-- Daily tab -->
+        <div class="tab-content" id="ttab-daily">
+          <div class="a-section">
+            <div class="a-section-title">
+              <span>📈 日別集計</span>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button class="btn-month" onclick="dailyChangeMonth(-1)">◀</button>
+                <span id="dailyMonthLabel" style="font-size:13px;font-weight:700;color:var(--text);"></span>
+                <button class="btn-month" onclick="dailyChangeMonth(1)">▶</button>
+              </div>
+            </div>
+            <div class="daily-wrap">
+              <div id="dailyTableWrap"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shuttle tab -->
+        <div class="tab-content" id="ttab-shuttle">
+          <div class="a-section">
+            <div class="a-section-title">
+              <span>🚐 送迎予定表</span>
+              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <select id="shViewMode" onchange="renderShuttle()" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border);border-radius:6px;font-family:inherit;">
+                  <option value="daily">📅 日別（ルート詳細）</option>
+                  <option value="monthly">📊 月次一覧</option>
+                  <option value="route">🗺️ ルート別</option>
+                </select>
+                <button class="sh-print-btn" onclick="printShuttle()">🖨️ 印刷</button>
+              </div>
+            </div>
+            <!-- Daily nav -->
+            <div id="shDailyNav" class="sh-daily-nav">
+              <button class="btn-month" onclick="shChangeDay(-1)">◀ 前日</button>
+              <span id="shDayLabel" style="font-size:15px;font-weight:700;"></span>
+              <button class="btn-month" onclick="shChangeDay(1)">翌日 ▶</button>
+            </div>
+            <!-- Monthly nav -->
+            <div id="shMonthNav" style="display:none;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+              <button class="btn-month" onclick="shChangeMonth(-1)">◀</button>
+              <span id="shMonthLabel" style="font-size:15px;font-weight:700;"></span>
+              <button class="btn-month" onclick="shChangeMonth(1)">▶</button>
+            </div>
+            <!-- Route filter tabs -->
+            <div class="sh-car-tabs" id="shCarTabs"></div>
+            <!-- Main content -->
+            <div id="shContent"></div>
+          </div>
+        </div>
+
+        <!-- Staff Management tab -->
+        <div class="tab-content" id="ttab-staffmgmt">
+          <div class="a-section">
+            <div class="a-section-title">
+              <span>👨‍✈️ スタッフ管理</span>
+              <button class="btn-add-user" onclick="openAddStaffModal()" style="font-size:12px;padding:7px 16px;">＋ スタッフ追加</button>
+            </div>
+            <div id="staffTableWrap"></div>
+          </div>
+          <div class="a-section" style="margin-top:0;">
+            <div class="a-section-title">
+              <span>🗺️ ルート管理</span>
+              <button class="btn-add-user" onclick="openAddRouteModal()" style="font-size:12px;padding:7px 16px;background:linear-gradient(135deg,var(--amber),#b45309);">＋ ルート追加</button>
+            </div>
+            <div id="routeTableWrap"></div>
+          </div>
+        </div>
+
+        <!-- User Management tab -->
+        <div class="tab-content" id="ttab-usermgmt">
+          <div class="a-section">
+            <div class="a-section-title">
+              <span>👥 利用者管理</span>
+              <button class="btn-add-user" onclick="openAddUserModal()">＋ 利用者追加</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <div id="userMgmtTableWrap"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Print target -->
+<div id="printTarget"></div>
+
+<!-- Staff Edit Modal -->
+<div class="modal-bg" id="staffModal">
+  <div class="modal" style="max-width:400px;">
+    <h3 id="staffModalTitle">スタッフを追加</h3>
+    <div class="modal-field"><label>スタッフ名 ＊</label><input id="sm-name" placeholder="例：田中 太郎"></div>
+    <div class="modal-field"><label>役職・担当</label><input id="sm-role" placeholder="例：送迎担当"></div>
+    <div class="modal-field"><label>電話番号</label><input id="sm-tel" type="tel" placeholder="例：090-0000-0000"></div>
+    <div class="modal-field"><label>免許・資格</label><input id="sm-license" placeholder="例：普通自動車免許"></div>
+    <div class="modal-field"><label>備考</label><textarea id="sm-note" rows="2" style="resize:vertical;"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeStaffModal()">キャンセル</button>
+      <button class="btn-danger" id="staffDelBtn" onclick="deleteStaff()" style="display:none;">削除</button>
+      <button class="btn-ok" onclick="saveStaff()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Route Edit Modal -->
+<div class="modal-bg" id="routeModal">
+  <div class="modal" style="max-width:460px;">
+    <h3 id="routeModalTitle">ルートを追加</h3>
+    <div class="modal-row">
+      <div class="modal-field"><label>ルート名 ＊</label><input id="rm-name" placeholder="例：Aルート"></div>
+      <div class="modal-field"><label>エリア</label><input id="rm-area" placeholder="例：北エリア"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label>使用車両</label><input id="rm-car" placeholder="例：1号車"></div>
+      <div class="modal-field"><label>ルートカラー</label>
+        <select id="rm-color">
+          <option value="#3b82f6">🔵 青</option>
+          <option value="#10b981">🟢 緑</option>
+          <option value="#f59e0b">🟡 黄</option>
+          <option value="#ef4444">🔴 赤</option>
+          <option value="#8b5cf6">🟣 紫</option>
+          <option value="#ec4899">🩷 ピンク</option>
+          <option value="#06b6d4">🩵 水色</option>
+          <option value="#f97316">🟠 橙</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-field"><label>担当スタッフ（行き）</label>
+      <select id="rm-staffIn" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;"></select>
+    </div>
+    <div class="modal-field"><label>担当スタッフ（帰り）</label>
+      <select id="rm-staffOut" style="width:100%;padding:9px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;"></select>
+    </div>
+    <div class="modal-field"><label>出発時刻（行き）</label><input id="rm-depTimeIn" type="time"></div>
+    <div class="modal-field"><label>出発時刻（帰り）</label><input id="rm-depTimeOut" type="time"></div>
+    <div class="modal-field"><label>メモ</label><textarea id="rm-note" rows="2" style="resize:vertical;"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeRouteModal()">キャンセル</button>
+      <button class="btn-danger" id="routeDelBtn" onclick="deleteRoute()" style="display:none;">削除</button>
+      <button class="btn-ok" onclick="saveRoute()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== DATA & CONFIG ===== */
+const ADMIN_PW = '1234'; // ← 変更してください
+const DOW_NAMES = ['日','月','火','水','木','金','土'];
+const STATUS_OPTIONS = [
+  {v:'',  l:'－'},
+  {v:'通〇',l:'通〇 昼食あり'},
+  {v:'通', l:'通　昼食なし'},
+  {v:'通A',l:'通A 半日'},
+  {v:'通P',l:'通P 半日昼無'},
+  {v:'在宅',l:'在宅 在宅勤務'},
+  {v:'在P',l:'在P 在宅半日'},
+  {v:'欠', l:'欠　欠席'},
+];
+const TR_OPTIONS = [
+  {v:'',      l:'（方法を選択）'},
+  {v:'送迎',  l:'🚐 送迎'},
+  {v:'徒歩',  l:'🚶 徒歩'},
+  {v:'自転車',l:'🚲 自転車'},
+  {v:'自家用車',l:'🚗 自家用車'},
+  {v:'公共交通機関',l:'🚌 公共交通機関'},
+  {v:'その他',l:'その他'},
+];
+function trOptsHtml(cur){
+  return TR_OPTIONS.map(o=>`<option value="${escHtml(o.v)}" ${cur===o.v?'selected':''}>${escHtml(o.l)}</option>`).join('');
+}
+function trLabel(v){
+  if(!v) return '';
+  const icons={'送迎':'🚐','徒歩':'🚶','自転車':'🚲','自家用車':'🚗','公共交通機関':'🚌'};
+  return (icons[v]||'')+(v==='公共交通機関'?'公交':v);
+}
+const HOLIDAYS = {2026:{5:[3,4,5]}};
+
+const DEFAULT_USERS = [
+  {no:1, name:'青目　和恵',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:13,routeName:'吹田西'},
+  {no:2, name:'秋葉　直子',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'吹田東'},
+  {no:3, name:'安倍　サミール',dis:'発達',  tr:'徒歩',      lim:'月の日数ー8日', tgt:12},
+  {no:4, name:'石橋　康代',   dis:'身体',   tr:'自家用車',  lim:'月の日数ー8日', tgt:14},
+  {no:5, name:'五十川　将',   dis:'身体',   tr:'徒歩',      lim:'月の日数ー8日', tgt:21},
+  {no:6, name:'一野　友美',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:21},
+  {no:7, name:'太田　綾子',   dis:'精神',   tr:'徒歩',      lim:'月10日',         tgt:0},
+  {no:8, name:'小川　麻菜美', dis:'精神',   tr:'徒歩',      lim:'月の日数ー8日', tgt:23},
+  {no:9, name:'荻本　沙希',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:7},
+  {no:10,name:'押上　祐舞',   dis:'発達',   tr:'送迎',      lim:'月の日数ー8日', tgt:11,routeName:'摂津'},
+  {no:11,name:'小幡　勇仁',   dis:'その他', tr:'送迎',      lim:'月の日数ー8日', tgt:19,routeName:'吹田東'},
+  {no:12,name:'梶原　浩',     dis:'精神',   tr:'徒歩',      lim:'月の日数ー8日', tgt:13},
+  {no:13,name:'鹿島　大雅',   dis:'知的',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:16},
+  {no:14,name:'片山　正登',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:22},
+  {no:15,name:'北岡　煌大',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:19,routeName:'吹田西'},
+  {no:16,name:'工藤　琉那',   dis:'発達',   tr:'送迎',      lim:'月の日数ー8日', tgt:7,routeName:'吹田西'},
+  {no:17,name:'小谷　尚人',   dis:'その他', tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'吹田西'},
+  {no:18,name:'小林　由佳',   dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:0},
+  {no:19,name:'近藤　雄一',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:8,routeName:'吹田西'},
+  {no:20,name:'阪口　雄輔',   dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:23},
+  {no:21,name:'澤枝　満',     dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:12,routeName:'摂津'},
+  {no:22,name:'須田　恵美',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:11,routeName:'摂津'},
+  {no:23,name:'田尻　花音',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:17,routeName:'東淀川'},
+  {no:24,name:'瀬尾　隆雄',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:20,routeName:'東淀川'},
+  {no:25,name:'多田　寿幸',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:19,routeName:'吹田西'},
+  {no:26,name:'辰見　範博',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:19,routeName:'吹田西'},
+  {no:27,name:'谷口　敏子',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'東淀川'},
+  {no:28,name:'田村　宗之',   dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:21},
+  {no:29,name:'中島　晴菜',   dis:'発達',   tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'吹田東'},
+  {no:30,name:'難波　千尋',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:22},
+  {no:31,name:'新留　佳代子', dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:20},
+  {no:32,name:'野中　菜帆',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'吹田西'},
+  {no:33,name:'橋本　嶺音',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:22,routeName:'吹田東'},
+  {no:34,name:'馬場　研児',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:4},
+  {no:35,name:'濱田　優',     dis:'発達',   tr:'自転車',    lim:'月の日数ー8日', tgt:21},
+  {no:36,name:'原口　敬一',   dis:'身体',   tr:'送迎',      lim:'月14日',         tgt:16,routeName:'吹田西'},
+  {no:37,name:'半田　千尋',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:12},
+  {no:38,name:'疋田　友子',   dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:21,routeName:'吹田東'},
+  {no:39,name:'深川　明日香', dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:11,routeName:'吹田西'},
+  {no:40,name:'深作　悠羽',   dis:'発達',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:8},
+  {no:41,name:'福井　あかね', dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:19},
+  {no:42,name:'福元　愛',     dis:'精神',   tr:'自家用車',  lim:'月10日',         tgt:6},
+  {no:43,name:'堀　佳純',     dis:'身体',   tr:'送迎',      lim:'月の日数ー8日', tgt:11,routeName:'東淀川'},
+  {no:44,name:'松本　江美',   dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:5,routeName:'吹田東'},
+  {no:45,name:'水越　文博',   dis:'その他', tr:'送迎',      lim:'月の日数ー8日', tgt:10,routeName:'吹田東'},
+  {no:46,name:'水谷　健次',   dis:'その他', tr:'徒歩',      lim:'月の日数ー8日', tgt:20},
+  {no:47,name:'南　飛翔',     dis:'知的',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:12},
+  {no:48,name:'矢野　佐織',   dis:'精神',   tr:'公共交通機関',lim:'月の日数ー8日',tgt:13},
+  {no:49,name:'山口　亜紀',   dis:'精神',   tr:'自転車',    lim:'月10日',         tgt:8},
+  {no:50,name:'山崎　充',     dis:'精神',   tr:'送迎',      lim:'月の日数ー8日', tgt:0,routeName:'吹田東'},
+  {no:51,name:'山田　真悠子', dis:'精神',   tr:'徒歩',      lim:'月の日数ー8日', tgt:1},
+  {no:52,name:'山野　美也子', dis:'精神',   tr:'徒歩',      lim:'月の日数ー8日', tgt:0},
+  {no:53,name:'山村　蒼太',   dis:'発達',   tr:'送迎',      lim:'月10日',         tgt:11,routeName:'摂津'},
+  {no:54,name:'山本　茜',     dis:'発達',   tr:'自転車',    lim:'月の日数ー8日', tgt:17},
+  {no:55,name:'吉田　千尋',   dis:'精神',   tr:'自転車',    lim:'月の日数ー8日', tgt:21},
+  {no:56,name:'吉村　育子',   dis:'身体',   tr:'送迎',      lim:'月15日',         tgt:11,routeName:'吹田東'},
+];
+
+/* ===== STATE ===== */
+let users = [];
+let scheduleData = {}; // key: `no_yyyy_m_d`, value: status string
+let uUser = null, uYear = 2026, uMonth = 5;
+let aUser = null, aYear = 2026, aMonth = 5;
+let mYear = 2026, mMonth = 5;
+let dailyYear = 2026, dailyMonth = 5;
+let diaryDate = new Date(2026,4,7); // May 7
+
+/* ===== HELPERS ===== */
+function dim(y,m){return new Date(y,m,0).getDate();}
+function dow(y,m,d){return new Date(y,m-1,d).getDay();}
+function closed(y,m,d){
+  return false; // 全日入力可能
+}
+function key(no,y,m,d){return `${no}_${y}_${m}_${d}`;}
+// raw cell: string (legacy) or {s:status, t:transport}
+function _raw(no,y,m,d){ return scheduleData[key(no,y,m,d)]||''; }
+function gv(no,y,m,d){ const r=_raw(no,y,m,d); return typeof r==='object'?(r.s||''):r; }
+function gvTr(no,y,m,d){ const r=_raw(no,y,m,d); return typeof r==='object'?(r.t||''):''; }
+function sv(no,y,m,d,v){
+  const r=_raw(no,y,m,d);
+  const cur=typeof r==='object'?r:{s:r,t:''};
+  scheduleData[key(no,y,m,d)]={s:v, t:cur.t};
+}
+function svTr(no,y,m,d,t){
+  const r=_raw(no,y,m,d);
+  const cur=typeof r==='object'?r:{s:r,t:''};
+  scheduleData[key(no,y,m,d)]={s:cur.s||'', t:t};
+}
+function scClass(v){
+  if(v==='通〇')return 'sc-maru'; if(v==='通')return 'sc-tsuu';
+  if(v==='通A')return 'sc-a'; if(v==='通P')return 'sc-p';
+  if(v==='在宅'||v==='在P')return 'sc-zai'; if(v==='欠')return 'sc-kyu';
+  return '';
+}
+function isTsuu(v){return v&&(v.startsWith('通'));}
+function isMeal(v){return v==='通〇';}
+function isZai(v){return v&&(v.startsWith('在'));}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>t.classList.remove('show'),2800);
+}
+function pad2(n){return String(n).padStart(2,'0');}
+
+/* ===== STORAGE ===== */
+function loadData(){
+  if(window._firebaseReady){
+    // Firebase からデータ取得
+    Promise.all([
+      window._get(window._ref(window._db,'sys_users')),
+      window._get(window._ref(window._db,'sys_schedule')),
+      window._get(window._ref(window._db,'sys_staff')),
+      window._get(window._ref(window._db,'sys_routes')),
+    ]).then(([uSnap,sSnap,stSnap,rSnap])=>{
+      if(uSnap.exists()) users=Object.values(uSnap.val()).sort((a,b)=>a.no-b.no);
+      else users=[...DEFAULT_USERS];
+      if(sSnap.exists()) scheduleData=sSnap.val(); else scheduleData={};
+      if(stSnap.exists()) staffList=Object.values(stSnap.val()); else staffList=[];
+      if(rSnap.exists()) routeList=Object.values(rSnap.val());
+      else routeList=JSON.parse(JSON.stringify(DEFAULT_ROUTES_MAIN));
+      // ローカルにもキャッシュ
+      localStorage.setItem('sys_users',JSON.stringify(users));
+      localStorage.setItem('sys_schedule',JSON.stringify(scheduleData));
+      // リアルタイム同期：他の端末の変更を即反映
+      window._onValue(window._ref(window._db,'sys_schedule'),(snap)=>{
+        if(snap.exists()) scheduleData=snap.val();
+      });
+      window._onValue(window._ref(window._db,'sys_users'),(snap)=>{
+        if(snap.exists()) users=Object.values(snap.val()).sort((a,b)=>a.no-b.no);
+      });
+    }).catch(e=>{
+      console.warn('Firebase load error:',e);
+      _loadFromLocal();
+    });
+  } else {
+    _loadFromLocal();
+  }
+}
+function _loadFromLocal(){
+  try{
+    const u=localStorage.getItem('sys_users'); if(u) users=JSON.parse(u); else users=[...DEFAULT_USERS];
+    const s=localStorage.getItem('sys_schedule'); if(s) scheduleData=JSON.parse(s);
+  }catch(e){users=[...DEFAULT_USERS];scheduleData={};}
+  loadStaffRoute();
+}
+function persist(){
+  // ローカルにも保存（オフライン対応）
+  localStorage.setItem('sys_users',JSON.stringify(users));
+  localStorage.setItem('sys_schedule',JSON.stringify(scheduleData));
+  // Firebase に保存
+  if(window._firebaseReady){
+    try{
+      const usersObj={};
+      users.forEach(u=>usersObj[u.no]=u);
+      window._set(window._ref(window._db,'sys_users'), usersObj);
+      window._set(window._ref(window._db,'sys_schedule'), scheduleData);
+    }catch(e){ console.warn('Firebase save error:',e); }
+  }
+}
+
+/* ===== OPT HTML ===== */
+function optsHtml(cur){
+  return STATUS_OPTIONS.map(o=>`<option value="${escHtml(o.v)}" ${cur===o.v?'selected':''}>${escHtml(o.l)}</option>`).join('');
+}
+
+/* ===== MODE SELECT ===== */
+function openUserScreen(){
+  setScreen('userScreen'); initUScreen();
+}
+function openAdminModal(){
+  document.getElementById('adminModal').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPwInput').focus(),80);
+}
+function closeAdminModal(){
+  document.getElementById('adminModal').classList.remove('open');
+  document.getElementById('adminPwInput').value='';
+  document.getElementById('modalErr').classList.remove('show');
+}
+function checkAdminPw(){
+  if(document.getElementById('adminPwInput').value===ADMIN_PW){
+    closeAdminModal(); setScreen('adminScreen'); initAScreen();
+  } else {
+    document.getElementById('modalErr').classList.add('show');
+    document.getElementById('adminPwInput').value='';
+    document.getElementById('adminPwInput').focus();
+  }
+}
+function backToSelector(){
+  setScreen('modeSelector');
+  uUser=null; aUser=null;
+}
+function setScreen(target){
+  const ms=document.getElementById('modeSelector');
+  const us=document.getElementById('userScreen');
+  const as=document.getElementById('adminScreen');
+  ms.style.display = target==='modeSelector' ? 'flex' : 'none';
+  us.style.display  = target==='userScreen'   ? 'flex' : 'none';
+  us.style.flexDirection = 'column';
+  as.style.display  = target==='adminScreen'  ? 'flex' : 'none';
+  as.style.flexDirection = 'column';
+}
+
+/* ===== USER SCREEN ===== */
+function initUScreen(){
+  renderUDropdown(users);
+  document.getElementById('uMonthLabel').textContent=`${uYear}年${uMonth}月`;
+}
+function renderUDropdown(list){
+  document.getElementById('uDropdown').innerHTML=list.map(u=>`
+    <div class="dropdown-item" onmousedown="selectUUser(${u.no})">
+      <span class="di-no">${u.no}</span>
+      <span class="di-name">${escHtml(u.name.replace('　',' '))}</span>
+      <span class="di-badge">${u.tr==='公共交通機関'?'公交':u.tr}</span>
+    </div>`).join('');
+}
+function filterUDropdown(){
+  const q=document.getElementById('uSearchInput').value.replace(/\s/g,'');
+  renderUDropdown(users.filter(u=>u.name.replace(/\s/g,'').includes(q)));
+  document.getElementById('uDropdown').classList.add('open');
+}
+function openUDropdown(){filterUDropdown(); document.getElementById('uDropdown').classList.add('open');}
+function closeUDropdown(){document.getElementById('uDropdown').classList.remove('open');}
+function selectUUser(no){
+  uUser=users.find(u=>u.no===no);
+  document.getElementById('uSearchInput').value=uUser.name.replace('　',' ');
+  closeUDropdown();
+  const bar=document.getElementById('selBar'); bar.classList.add('show');
+  document.getElementById('selAv').textContent=uUser.name.charAt(0);
+  document.getElementById('selName').textContent=uUser.name.replace('　',' ');
+  document.getElementById('uInputArea').style.display='block';
+  document.getElementById('uMonthLabel').textContent=`${uYear}年${uMonth}月`;
+  renderUCal(); updateUSummary();
+  renderMyShuttleInfo();
+}
+function changeUUser(){
+  uUser=null;
+  document.getElementById('selBar').classList.remove('show');
+  document.getElementById('uInputArea').style.display='none';
+  document.getElementById('uSearchInput').value='';
+  renderUDropdown(users);
+}
+function uChangeMonth(d){
+  uMonth+=d; if(uMonth>12){uMonth=1;uYear++;} if(uMonth<1){uMonth=12;uYear--;}
+  document.getElementById('uMonthLabel').textContent=`${uYear}年${uMonth}月`;
+  renderUCal(); updateUSummary();
+}
+function renderUCal(){
+  if(!uUser) return;
+  const total=dim(uYear,uMonth);
+  let html='';
+  for(let d=1;d<=total;d++){
+    const dw=dow(uYear,uMonth,d);
+    const isSun=dw===0, isSat=dw===6;
+    const isHol=closed(uYear,uMonth,d);
+    const val=gv(uUser.no,uYear,uMonth,d);
+    const trVal=gvTr(uUser.no,uYear,uMonth,d)||uUser.tr||'';
+    const isP=(trVal==='送迎'||uUser.tr==='送迎')&&isTsuu(val);
+    const dwCls=isSun?'dow-sun':isSat?'dow-sat':'';
+    const rowBg=isSun?'background:#fff5f5;':isSat?'background:#f0f8ff;':isHol?'background:#fff8e1;':'';
+    const hasData=!!(val||trVal!==uUser.tr);
+    html+=`<div class="u-day-row ${val?'has-data':''}" id="ur-${d}" style="${rowBg}">
+      <div class="u-day-label">
+        <span>${uMonth}/${d}</span>
+        <span class="dow ${dwCls}">${DOW_NAMES[dw]}${isHol?' 祝':''}</span>
+      </div>
+      <select class="u-sel" data-d="${d}" onchange="onUChg(this)">${optsHtml(val)}</select>
+      <select class="u-tr-sel" data-d="${d}" onchange="onUTrChg(this)">${trOptsHtml(trVal)}</select>
+      <span class="pickup-tag ${isP?'show':''}" id="utag-${d}">🚐</span>
+    </div>`;
+  }
+  document.getElementById('uDayList').innerHTML=html;
+}
+function onUChg(sel){
+  const d=Number(sel.dataset.d), v=sel.value;
+  sv(uUser.no,uYear,uMonth,d,v);
+  document.getElementById('ur-'+d).classList.toggle('has-data',!!v);
+  const tag=document.getElementById('utag-'+d);
+  const trVal=gvTr(uUser.no,uYear,uMonth,d)||uUser.tr||'';
+  if(tag) tag.classList.toggle('show',trVal==='送迎'&&isTsuu(v));
+  updateUSummary();
+}
+function onUTrChg(sel){
+  const d=Number(sel.dataset.d), t=sel.value;
+  svTr(uUser.no,uYear,uMonth,d,t);
+  const v=gv(uUser.no,uYear,uMonth,d);
+  const tag=document.getElementById('utag-'+d);
+  if(tag) tag.classList.toggle('show',t==='送迎'&&isTsuu(v));
+  updateUSummary();
+}
+function updateUSummary(){
+  if(!uUser) return;
+  let t=0,m=0,p=0;
+  for(let d=1;d<=dim(uYear,uMonth);d++){
+    const v=gv(uUser.no,uYear,uMonth,d);
+    const trDay=gvTr(uUser.no,uYear,uMonth,d)||uUser.tr||'';
+    if(isTsuu(v)){ t++; if(trDay==='送迎') p++; }
+    if(isMeal(v)) m++;
+  }
+  document.getElementById('uSumT').textContent=t;
+  document.getElementById('uSumM').textContent=m;
+  document.getElementById('uSumP').textContent=p;
+}
+function renderMyShuttleInfo(){
+  if(!uUser) return;
+  const card=document.getElementById('myShuttleCard');
+  const info=document.getElementById('myShuttleInfo');
+  const btn=document.getElementById('myShuttleBtn');
+  if(uUser.tr!=='送迎'){
+    card.style.display='none';
+    if(btn) btn.style.display='none';
+    return;
+  }
+  card.style.display='block';
+  if(btn) btn.style.display='block';
+  info.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">
+      <div style="background:var(--u-light);border-radius:7px;padding:9px;">
+        <div style="font-size:11px;color:var(--u-accent2);font-weight:700;margin-bottom:4px;">ルート情報</div>
+        <div>ルート：<strong>${escHtml(uUser.routeName||'未設定')}</strong></div>
+        <div>車両：${escHtml(uUser.carIn||'未設定')}</div>
+      </div>
+      <div style="background:var(--u-light);border-radius:7px;padding:9px;">
+        <div style="font-size:11px;color:var(--u-accent2);font-weight:700;margin-bottom:4px;">送迎時刻</div>
+        <div>🌅 お迎え：<strong>${uUser.pickupTime||'未設定'}</strong></div>
+        <div>🌇 お送り：<strong>${uUser.dropTime||'未設定'}</strong></div>
+      </div>
+    </div>`;
+}
+function openShuttleView(){
+  window.open('送迎予定表.html','_blank');
+}
+function saveUSchedule(){persist(); showToast('✅ '+uUser.name.replace('　',' ')+' の予定を保存しました'); renderAList(getFiltAUsers());}
+
+/* ===== ADMIN SCREEN ===== */
+function initAScreen(){
+  renderAList(users); renderCalHeader();
+  renderGlobalStats(); renderMonthlyTable();
+  renderDiaryPage(); renderDailyTable(); renderUserMgmt();
+  document.getElementById('mMonthLabel').textContent=`${mYear}年${mMonth}月`;
+  document.getElementById('aMonthLabel').textContent=`${aYear}年${aMonth}月`;
+  document.getElementById('dailyMonthLabel').textContent=`${dailyYear}年${dailyMonth}月`;
+  updateDiaryLabel();
+}
+function getFiltAUsers(){
+  const q=(document.getElementById('aSearchInput')||{value:''}).value.replace(/\s/g,'');
+  const tr=(document.getElementById('aFilterTr')||{value:''}).value;
+  return users.filter(u=>{
+    if(q&&!u.name.replace(/\s/g,'').includes(q)) return false;
+    if(tr&&u.tr!==tr) return false;
+    return true;
+  });
+}
+function filterAList(){renderAList(getFiltAUsers());}
+function renderAList(list){
+  document.getElementById('aUserList').innerHTML=list.map(u=>`
+    <div class="a-user-item ${aUser&&aUser.no===u.no?'active':''}" onclick="selectAUser(${u.no})">
+      <span class="a-u-no">${u.no}</span>
+      <span class="a-u-name">${escHtml(u.name.replace('　',' '))}</span>
+      <span class="a-dot ${hasData(u.no)?'has':''}"></span>
+    </div>`).join('');
+  document.getElementById('aListCount').textContent=list.length;
+}
+function hasData(no){return Object.keys(scheduleData).some(k=>k.startsWith(no+'_')&&scheduleData[k]);}
+function selectAUser(no){
+  aUser=users.find(u=>u.no===no);
+  renderAList(getFiltAUsers());
+  document.getElementById('aWelcome').style.display='none';
+  document.getElementById('aTopTabs').style.display='flex';
+  switchTopTab('user');
+  document.getElementById('aAvatar').textContent=aUser.name.charAt(0);
+  document.getElementById('aPanelName').textContent=aUser.name.replace('　',' ');
+  document.getElementById('aPanelBadges').innerHTML=`
+    <span class="a-badge ab-dis">${aUser.dis}</span>
+    <span class="a-badge ab-trns">🚗 ${aUser.tr}</span>
+    <span class="a-badge ab-lmt">${aUser.lim}</span>`;
+  document.getElementById('aSumTgt').textContent=aUser.tgt||'-';
+  document.getElementById('aMonthLabel').textContent=`${aYear}年${aMonth}月`;
+  renderACalGrid(); updateASummary(); switchUserTab('cal');
+}
+
+/* Top tabs */
+function switchTopTab(tab){
+  const tabs=['user','monthly','diary','daily','shuttle','staffmgmt','usermgmt'];
+  document.querySelectorAll('#aTopTabs .tab-btn').forEach((b,i)=>b.classList.toggle('active',tabs[i]===tab));
+  document.querySelectorAll('[id^="ttab-"]').forEach(c=>c.classList.remove('active'));
+  document.getElementById('ttab-'+tab).classList.add('active');
+  if(tab==='monthly') renderMonthlyTable();
+  if(tab==='diary') renderDiaryPage();
+  if(tab==='daily') renderDailyTable();
+  if(tab==='shuttle') initShuttle();
+  if(tab==='staffmgmt') renderStaffMgmt();
+  if(tab==='usermgmt') renderUserMgmt();
+  if(tab!=='user') document.getElementById('aTopTabs').style.display='flex';
+}
+function switchUserTab(tab){
+  document.querySelectorAll('#utab-cal,#utab-list').forEach(c=>c.classList.remove('active'));
+  document.getElementById('utab-'+tab).classList.add('active');
+  document.querySelectorAll('.tabs .tab-btn').forEach((b,i)=>{
+    if(b.closest('.tabs')===document.querySelector('#ttab-user .tabs'))
+      b.classList.toggle('active',i===(tab==='cal'?0:1));
+  });
+  if(tab==='list') renderAList2();
+}
+
+/* User calendar admin */
+function renderCalHeader(){
+  document.getElementById('aCalHeader').innerHTML=DOW_NAMES.map((d,i)=>
+    `<div class="cal-dn ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('');
+}
+function aChangeMonth(dir){
+  aMonth+=dir; if(aMonth>12){aMonth=1;aYear++;} if(aMonth<1){aMonth=12;aYear--;}
+  document.getElementById('aMonthLabel').textContent=`${aYear}年${aMonth}月`;
+  renderACalGrid(); updateASummary();
+}
+function trBadgeClass(tr){
+  if(!tr) return '';
+  if(tr==='送迎') return 'tr-souei';
+  if(tr==='徒歩') return 'tr-walk';
+  if(tr==='自転車') return 'tr-bike';
+  if(tr==='自家用車') return 'tr-car';
+  if(tr==='公共交通機関') return 'tr-pub';
+  return 'tr-other';
+}
+function trShortLabel(tr){
+  if(!tr) return '';
+  const map={'送迎':'🚐送迎','徒歩':'🚶徒歩','自転車':'🚲自転車','自家用車':'🚗自車','公共交通機関':'🚌公交','その他':'その他'};
+  return map[tr]||tr;
+}
+
+function renderACalGrid(){
+  if(!aUser) return;
+  const total=dim(aYear,aMonth), first=dow(aYear,aMonth,1);
+  let html='';
+  for(let i=0;i<first;i++) html+='<div></div>';
+
+  for(let d=1;d<=total;d++){
+    const dw     = dow(aYear,aMonth,d);
+    const isSun  = dw===0, isSat=dw===6, isHol=closed(aYear,aMonth,d);
+    const val    = gv(aUser.no,aYear,aMonth,d);
+    const trVal  = gvTr(aUser.no,aYear,aMonth,d)||'';
+    const dwCls  = isSun?'sun':isSat?'sat':'';
+    const hasData= !!(val||trVal);
+
+    // Per-day time overrides — read from unified key (same as shuttle table)
+    const _dk       = shDK(aYear,aMonth,d);
+    const pickupTime= shGetTime(_dk,aUser.no,'in')||aUser.pickupTime||'';
+    const dropTime  = shGetTime(_dk,aUser.no,'out')||aUser.dropTime||'';
+
+    // Effective transport (trVal if set, else user default — always show base transport)
+    const effTr     = trVal||aUser.tr||'';
+    const isShuttle = effTr==='送迎';
+
+    const bgStyle = isSun?'background:#fff5f5;':isSat?'background:#f0f8ff;':isHol?'background:#fff8e1;':'';
+
+    // ── Transport badge (shown directly on cell) ──
+    const trBadge = effTr
+      ? `<div class="cal-tr-badge ${trBadgeClass(effTr)}"
+            onclick="toggleAPopover(event,${d})"
+            title="クリックして詳細・変更">${trShortLabel(effTr)}</div>`
+      : (val
+          ? `<div class="cal-tr-badge tr-other"
+                onclick="toggleAPopover(event,${d})"
+                title="通所方法を設定">＋方法</div>`
+          : '');
+
+    // ── Shuttle times: show whenever 送迎 user has a time set ──
+    const showTime = isShuttle && (pickupTime || dropTime);
+    const timeRow = showTime
+      ? `<div class="cal-time-row">
+          <span class="cal-time-in" style="${val&&isTsuu(val)?'':'opacity:.5;'}">行${pickupTime?':'+pickupTime:'－'}</span>
+          <span style="color:var(--border);margin:0 2px;">|</span>
+          <span class="cal-time-out" style="${val&&isTsuu(val)?'':'opacity:.5;'}">帰${dropTime?':'+dropTime:'－'}</span>
+         </div>`
+      : '';
+
+    // ── Popover (detail edit panel) ──
+    const trOptions = TR_OPTIONS.map(o=>
+      `<option value="${escHtml(o.v)}" ${effTr===o.v?'selected':''}>${escHtml(o.l)}</option>`
+    ).join('');
+
+    html+=`<div class="cal-cell ${isSat||isSun?'weekend':''} ${hasData?'has-data':''}"
+        id="acell-${d}" style="${bgStyle}">
+      <div class="cal-date ${dwCls}">${d}${isHol?'<span style="font-size:9px;color:#d97706;display:block;">祝</span>':''}</div>
+      <select class="cal-sel" data-d="${d}" onchange="onAChg(this)">${optsHtml(val)}</select>
+      ${trBadge}
+      ${timeRow}
+      <!-- ── Popover ── -->
+      <div class="cal-popover" id="apop-${d}">
+        <button class="popover-close" onclick="closeAPopover(${d})">✕</button>
+        <div style="font-size:12px;font-weight:700;color:var(--a-accent);margin-bottom:8px;">${aMonth}/${d} 詳細設定</div>
+        <label>通所方法</label>
+        <select onchange="onATrChg(${d},this.value)">${trOptions}</select>
+        ${isShuttle ? `
+        <label style="color:var(--u-accent2);">🌅 お迎え時刻</label>
+        <input type="time" value="${escHtml(pickupTime)}"
+          onchange="onAPickupChg(${d},this.value)">
+        <label style="color:var(--green);">🌇 お送り時刻</label>
+        <input type="time" value="${escHtml(dropTime)}"
+          onchange="onADropChg(${d},this.value)">
+        ` : ''}
+      </div>
+    </div>`;
+  }
+  document.getElementById('aCalGrid').innerHTML=html;
+}
+
+function onAChg(sel){
+  const d=Number(sel.dataset.d),v=sel.value;
+  sv(aUser.no,aYear,aMonth,d,v);
+  renderACalGrid();   // re-render to show/hide badge and time row
+  updateASummary();
+}
+function onATrChg(d,trVal){
+  svTr(aUser.no,aYear,aMonth,d,trVal);
+  closeAPopover(d);
+  // Full re-render so badge + time row update correctly
+  renderACalGrid();
+  updateASummary();
+}
+
+function onAPickupChg(d,val){
+  // Save with same key as shuttle table → changes reflect across both views
+  shSetTime(shDK(aYear,aMonth,d), aUser.no, 'in', val||null);
+  const cell=document.getElementById('acell-'+d);
+  if(cell){ const el=cell.querySelector('.cal-time-in'); if(el) el.textContent='行'+(val?':'+val:''); }
+}
+function onADropChg(d,val){
+  shSetTime(shDK(aYear,aMonth,d), aUser.no, 'out', val||null);
+  const cell=document.getElementById('acell-'+d);
+  if(cell){ const el=cell.querySelector('.cal-time-out'); if(el) el.textContent='帰'+(val?':'+val:''); }
+}
+
+/* ── Popover open/close ── */
+let _openPopover=null;
+function toggleAPopover(evt,d){
+  evt.stopPropagation();
+  const pop=document.getElementById('apop-'+d);
+  if(!pop) return;
+  if(_openPopover&&_openPopover!==pop){
+    _openPopover.classList.remove('open');
+  }
+  pop.classList.toggle('open');
+  _openPopover=pop.classList.contains('open')?pop:null;
+}
+function closeAPopover(d){
+  const pop=document.getElementById('apop-'+d);
+  if(pop) pop.classList.remove('open');
+  _openPopover=null;
+}
+// Close popover when clicking outside
+document.addEventListener('click',()=>{
+  if(_openPopover){ _openPopover.classList.remove('open'); _openPopover=null; }
+});
+function updateASummary(){
+  if(!aUser) return;
+  let t=0,m=0,p=0;
+  for(let d=1;d<=dim(aYear,aMonth);d++){
+    const v=gv(aUser.no,aYear,aMonth,d);
+    const trDay=gvTr(aUser.no,aYear,aMonth,d)||aUser.tr||'';
+    if(isTsuu(v)){ t++; if(trDay==='送迎') p++; }
+    if(isMeal(v)) m++;
+  }
+  document.getElementById('aSumT').textContent=t;
+  document.getElementById('aSumM').textContent=m;
+  document.getElementById('aSumP').textContent=p;
+}
+function saveASchedule(){persist(); renderAList(getFiltAUsers()); showToast('✅ 保存しました');}
+function renderAList2(){
+  if(!aUser) return;
+  const total=dim(aYear,aMonth);
+  const rows=[];
+  for(let d=1;d<=total;d++){
+    const v=gv(aUser.no,aYear,aMonth,d);
+    if(!v) continue;
+    const dwActual=DOW_NAMES[dow(aYear,aMonth,d)];
+    const trDay=gvTr(aUser.no,aYear,aMonth,d)||aUser.tr||'';
+    const mealBadge=isMeal(v)?'<span style="background:var(--green-light);color:var(--green);font-size:11px;padding:2px 5px;border-radius:4px;">🍱あり</span>':'－';
+    const trIcon={'送迎':'🚐','徒歩':'🚶','自転車':'🚲','自家用車':'🚗','公共交通機関':'🚌'};
+    const trBadge=trDay
+      ? `<span style="font-size:11px;padding:2px 6px;border-radius:4px;background:${trDay==='送迎'?'var(--pink-light)':'var(--surface2)'};color:${trDay==='送迎'?'var(--pink)':'var(--text2)'};">${(trIcon[trDay]||'')+trDay}</span>`
+      : '－';
+    // shuttle info if applicable
+    const shInfo=trDay==='送迎'&&isTsuu(v)
+      ? `<span style="font-size:10px;color:var(--gray);">行:${aUser.pickupTime||'－'} 帰:${aUser.dropTime||'－'}</span>`
+      : '';
+    rows.push(`<tr>
+      <td style="white-space:nowrap;">${aMonth}/${d}（${dwActual}）</td>
+      <td><span class="sc ${scClass(v)}">${v}</span></td>
+      <td>${trBadge}${shInfo?'<br>'+shInfo:''}</td>
+      <td>${mealBadge}</td>
+    </tr>`);
+  }
+  document.getElementById('aListContent').innerHTML=rows.length?
+    `<table class="monthly-table" style="min-width:auto;">
+      <thead><tr><th>日付</th><th>区分</th><th>通所方法</th><th>食事</th></tr></thead>
+      <tbody>${rows.join('')}</tbody>
+    </table>`:
+    '<p style="color:var(--gray);text-align:center;padding:16px;">予定が入力されていません</p>';
+}
+
+/* ===== MONTHLY TABLE ===== */
+function mChangeMonth(dir){
+  mMonth+=dir; if(mMonth>12){mMonth=1;mYear++;} if(mMonth<1){mMonth=12;mYear--;}
+  document.getElementById('mMonthLabel').textContent=`${mYear}年${mMonth}月`;
+  renderMonthlyTable();
+}
+function renderMonthlyTable(){
+  const mode=document.getElementById('mViewMode').value;
+  const total=dim(mYear,mMonth);
+  const wDays=[];
+  for(let d=1;d<=total;d++) wDays.push(d); // 全日表示
+
+  // Build column headers with day-of-week color
+  const thDays=wDays.map(d=>{
+    const dw=dow(mYear,mMonth,d);
+    const isSun=dw===0,isSat=dw===6;
+    const col=isSun?'color:#dc2626;':isSat?'color:#0369a1;':'';
+    return `<th style="min-width:30px;${col}">${d}<br><span style="font-weight:400;font-size:10px;">${DOW_NAMES[dw]}</span></th>`;
+  }).join('');
+
+  // thead: 利用者名 + 通所方法 + 日付列 + 合計
+  let thead=`<tr>
+    <th class="td-name" style="min-width:90px;">利用者</th>
+    <th style="min-width:62px;white-space:nowrap;">通所方法</th>
+    ${thDays}
+    <th>合計</th>
+  </tr>`;
+
+  // Per-day counters
+  const dayCnt={tsuu:{},meal:{},pickup:{}};
+  wDays.forEach(d=>{dayCnt.tsuu[d]=0;dayCnt.meal[d]=0;dayCnt.pickup[d]=0;});
+
+  let tbody='';
+  users.forEach(u=>{
+    let cnt=0;
+    const cells=wDays.map(d=>{
+      const v=gv(u.no,mYear,mMonth,d);
+      if(mode==='tsuu'){
+        if(!v) return '<td></td>';
+        const trDay=gvTr(u.no,mYear,mMonth,d)||u.tr||'';
+        if(isTsuu(v)){dayCnt.tsuu[d]++;cnt++;}
+        if(isMeal(v)) dayCnt.meal[d]++;
+        if(trDay==='送迎'&&isTsuu(v)) dayCnt.pickup[d]++;
+        const trBit=trDay?`<div style="font-size:9px;color:var(--gray);line-height:1.2;margin-top:1px;">${trLabel(trDay)}</div>`:'';
+        return `<td style="padding:3px 2px;"><span class="sc ${scClass(v)}">${v}</span>${trBit}</td>`;
+      } else if(mode==='meal'){
+        const has=isMeal(v);
+        if(has){dayCnt.meal[d]++;cnt++;}
+        return `<td>${has?'<span class="sc sc-meal">🍱</span>':''}</td>`;
+      } else {
+        const trDay=gvTr(u.no,mYear,mMonth,d)||u.tr||'';
+        const has=trDay==='送迎'&&isTsuu(v);
+        if(has){dayCnt.pickup[d]++;cnt++;}
+        return `<td>${has?'<span class="sc sc-pickup">🚐</span>':''}</td>`;
+      }
+    }).join('');
+    // transport badge
+    const trBadge=`<span style="font-size:11px;padding:2px 5px;border-radius:4px;background:var(--pink-light);color:var(--pink);white-space:nowrap;">${escHtml(u.tr==='公共交通機関'?'公交':u.tr)}</span>`;
+    tbody+=`<tr>
+      <td class="td-name">${escHtml(u.name.replace('　',' '))}</td>
+      <td style="text-align:center;">${trBadge}</td>
+      ${cells}
+      <td style="font-weight:700;text-align:center;">${cnt}</td>
+    </tr>`;
+  });
+
+  // Summary rows at bottom
+  const sumRowTsuu=wDays.map(d=>`<td style="font-weight:700;color:var(--a-accent);text-align:center;">${dayCnt.tsuu[d]||''}</td>`).join('');
+  const sumRowMeal=wDays.map(d=>`<td style="font-weight:700;color:var(--green);text-align:center;">${dayCnt.meal[d]||''}</td>`).join('');
+  const sumRowPickup=wDays.map(d=>`<td style="font-weight:700;color:var(--pink);text-align:center;">${dayCnt.pickup[d]||''}</td>`).join('');
+  const totalTsuu=Object.values(dayCnt.tsuu).reduce((a,b)=>a+b,0);
+  const totalMeal=Object.values(dayCnt.meal).reduce((a,b)=>a+b,0);
+  const totalPickup=Object.values(dayCnt.pickup).reduce((a,b)=>a+b,0);
+
+  const tfoot=`<tfoot>
+    <tr style="background:#eef2ff;">
+      <td colspan="2" style="font-weight:700;font-size:12px;color:var(--a-accent);padding:5px 8px;">👤 通所人数</td>
+      ${sumRowTsuu}
+      <td style="font-weight:700;color:var(--a-accent);text-align:center;">${totalTsuu}</td>
+    </tr>
+    <tr style="background:#f0fdf4;">
+      <td colspan="2" style="font-weight:700;font-size:12px;color:var(--green);padding:5px 8px;">🍱 昼食数</td>
+      ${sumRowMeal}
+      <td style="font-weight:700;color:var(--green);text-align:center;">${totalMeal}</td>
+    </tr>
+    <tr style="background:#fff0f6;">
+      <td colspan="2" style="font-weight:700;font-size:12px;color:var(--pink);padding:5px 8px;">🚐 送迎人数</td>
+      ${sumRowPickup}
+      <td style="font-weight:700;color:var(--pink);text-align:center;">${totalPickup}</td>
+    </tr>
+  </tfoot>`;
+
+  document.getElementById('monthlyTableWrap').innerHTML=
+    `<table class="monthly-table"><thead>${thead}</thead>${tfoot}<tbody>${tbody}</tbody></table>`;
+}
+
+/* ===== GLOBAL STATS ===== */
+function renderGlobalStats(){
+  const total=dim(2026,5);
+  let t=0,m=0,p=0;
+  users.forEach(u=>{for(let d=1;d<=total;d++){const v=gv(u.no,2026,5,d);if(isTsuu(v)){t++;if(u.tr==='送迎')p++;}if(isMeal(v))m++;}});
+  document.getElementById('aGlobalStats').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+      <div class="a-stat s-total"><div class="a-stat-num">${t}</div><div class="a-stat-label">通所件数計</div></div>
+      <div class="a-stat s-meal"><div class="a-stat-num">${m}</div><div class="a-stat-label">昼食あり計</div></div>
+      <div class="a-stat s-pickup"><div class="a-stat-num">${p}</div><div class="a-stat-label">送迎件数計</div></div>
+    </div>`;
+}
+
+/* ===== DIARY ===== */
+function updateDiaryLabel(){
+  const y=diaryDate.getFullYear(),m=diaryDate.getMonth()+1,d=diaryDate.getDate();
+  const dw=DOW_NAMES[diaryDate.getDay()];
+  document.getElementById('diaryDateLabel').textContent=`${y}年${m}月${d}日（${dw}）`;
+}
+function diaryChangeDay(dir){
+  diaryDate.setDate(diaryDate.getDate()+dir);
+  updateDiaryLabel(); renderDiaryPage();
+}
+function renderDiaryPage(){
+  const y=diaryDate.getFullYear(),m=diaryDate.getMonth()+1,d=diaryDate.getDate();
+  const dw=DOW_NAMES[diaryDate.getDay()];
+
+  // Gather users attending
+  const attending=[], pickup_in=[], pickup_out=[];
+  let mealCnt=0, tsuu_cnt=0;
+  users.forEach(u=>{
+    const v=gv(u.no,y,m,d);
+    if(!v||v==='欠') return;
+    if(isTsuu(v)||isZai(v)){
+      const label=v==='通〇'?'全日〇':v==='通'?'全日':v==='通A'?'AM':v==='通P'?'PM':v==='在宅'?'在宅':v==='在P'?'在宅PM':v;
+      attending.push({name:u.name,label,meal:isMeal(v),pickup:u.tr==='送迎'&&isTsuu(v)});
+      if(isTsuu(v)) tsuu_cnt++;
+      if(isMeal(v)) mealCnt++;
+      if(u.tr==='送迎'&&isTsuu(v)){pickup_in.push(u.name); pickup_out.push(u.name);}
+    }
+  });
+
+  const attendRows=attending.map(u=>`
+    <div class="diary-user-row">
+      <span class="d-name">${escHtml(u.name.replace('　',' '))}</span>
+      <span class="d-status sc ${u.label==='全日〇'?'sc-maru':u.label==='AM'||u.label==='PM'?'sc-a':u.label==='在宅'||u.label==='在宅PM'?'sc-zai':'sc-tsuu'}">${escHtml(u.label)}</span>
+      ${u.meal?'<span class="sc sc-meal" style="margin-left:3px;">🍱</span>':''}
+    </div>`).join('');
+
+  const pickupRows=pickup_in.map(name=>`
+    <div class="diary-pickup-row">
+      <span class="d-dir in">送迎（朝）</span>
+      <span class="d-name">${escHtml(name.replace('　',' '))}</span>
+    </div>
+    <div class="diary-pickup-row">
+      <span class="d-dir out">送迎（帰り）</span>
+      <span class="d-name">${escHtml(name.replace('　',' '))}</span>
+    </div>`).join('');
+
+  const html=`<div class="diary-page" id="diaryPrint">
+    <div class="diary-title">☆ 業務日誌</div>
+    <div class="diary-date">${y}年${m}月${d}日（${dw}）</div>
+    <div class="diary-summary-row">
+      <div class="diary-summary-cell"><div class="ds-num" style="color:var(--a-accent);">${tsuu_cnt}</div><div class="ds-label">通所予定者数</div></div>
+      <div class="diary-summary-cell"><div class="ds-num" style="color:var(--green);">${mealCnt}</div><div class="ds-label">昼食あり</div></div>
+      <div class="diary-summary-cell"><div class="ds-num" style="color:var(--pink);">${pickup_in.length}</div><div class="ds-label">送迎人数</div></div>
+      <div class="diary-summary-cell"><div class="ds-num" style="color:var(--amber);">${users.length}</div><div class="ds-label">登録利用者数</div></div>
+    </div>
+    <div class="diary-grid">
+      <div class="diary-box">
+        <div class="diary-box-title">🧑 本日の通所予定者（${attending.length}名）</div>
+        <div class="diary-box-body">
+          <div class="diary-user-list">${attendRows||'<p style="color:var(--gray);font-size:12px;padding:8px 0;">予定なし</p>'}</div>
+        </div>
+      </div>
+      <div class="diary-box">
+        <div class="diary-box-title">🚐 送迎予定（${pickup_in.length}名）</div>
+        <div class="diary-box-body">
+          <div class="diary-pickup-list">${pickupRows||'<p style="color:var(--gray);font-size:12px;padding:8px 0;">送迎なし</p>'}</div>
+        </div>
+      </div>
+    </div>
+    <div class="diary-box" style="margin-bottom:14px;">
+      <div class="diary-box-title">🍱 昼食予定者（${mealCnt}名）</div>
+      <div class="diary-box-body" style="display:flex;flex-wrap:wrap;gap:4px;padding:8px;">
+        ${attending.filter(u=>u.meal).map(u=>`<span class="sc sc-meal">${escHtml(u.name.replace('　',' '))}</span>`).join('')||'<span style="color:var(--gray);font-size:12px;">なし</span>'}
+      </div>
+    </div>
+    <div class="diary-box">
+      <div class="diary-box-title" style="color:var(--text2);">📝 コメント欄（通所者数・施設外就労者数・欠席数 等）</div>
+      <div class="diary-box-body" style="min-height:60px;"></div>
+    </div>
+  </div>`;
+  document.getElementById('diaryContent').innerHTML=html;
+}
+function printDiary(){
+  const content=document.getElementById('diaryPrint');
+  if(!content) return;
+  document.getElementById('printTarget').innerHTML=content.outerHTML;
+  window.print();
+}
+
+/* ===== DAILY TABLE ===== */
+function dailyChangeMonth(dir){
+  dailyMonth+=dir; if(dailyMonth>12){dailyMonth=1;dailyYear++;} if(dailyMonth<1){dailyMonth=12;dailyYear--;}
+  document.getElementById('dailyMonthLabel').textContent=`${dailyYear}年${dailyMonth}月`;
+  renderDailyTable();
+}
+function renderDailyTable(){
+  const total=dim(dailyYear,dailyMonth);
+  let rows='';
+  for(let d=1;d<=total;d++){
+    if(closed(dailyYear,dailyMonth,d)) continue; // 祝日のみスキップ
+    const dw=DOW_NAMES[dow(dailyYear,dailyMonth,d)];
+    let t=0,m=0,p=0;
+    users.forEach(u=>{const v=gv(u.no,dailyYear,dailyMonth,d);if(isTsuu(v)){t++;if(u.tr==='送迎')p++;}if(isMeal(v))m++;});
+    rows+=`<tr><td style="font-weight:700;">${dailyMonth}/${d}</td><td>${dw}</td>
+      <td style="color:var(--a-accent);font-weight:700;font-size:15px;">${t}</td>
+      <td style="color:var(--green);font-weight:700;font-size:15px;">${m}</td>
+      <td style="color:var(--pink);font-weight:700;font-size:15px;">${p}</td></tr>`;
+  }
+  document.getElementById('dailyTableWrap').innerHTML=`
+    <table class="daily-table">
+      <thead><tr><th>日付</th><th>曜日</th><th>通所</th><th>昼食</th><th>送迎</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+/* ===== USER MANAGEMENT ===== */
+function renderUserMgmt(){
+  const rows=users.map(u=>`
+    <tr onclick="showUserDetail(${u.no})" style="cursor:pointer;" title="クリックで詳細表示">
+      <td>${u.no}</td>
+      <td style="font-weight:500;">${escHtml(u.name.replace('　',' '))}</td>
+      <td>${escHtml(u.dis||'')}${u.disname?'<br><span style="font-size:11px;color:var(--gray);">'+escHtml(u.disname)+'</span>':''}</td>
+      <td>${escHtml(u.tr||'')}</td>
+      <td>${escHtml(u.tel||'－')}</td>
+      <td>${u.allergy==='あり'?'<span style="color:var(--red);font-weight:700;">あり</span>':'なし'}</td>
+      <td>
+        <button class="btn-edit" onclick="event.stopPropagation();openEditUserModal(${u.no})">編集</button>
+        <button class="btn-del" onclick="event.stopPropagation();confirmDeleteUser(${u.no})">削除</button>
+      </td>
+    </tr>`).join('');
+  document.getElementById('userMgmtTableWrap').innerHTML=`
+    <div id="userDetailPane" style="display:none;margin-bottom:12px;"></div>
+    <table class="user-mgmt-table">
+      <thead><tr><th>NO</th><th>名前</th><th>障害種別</th><th>通所方法</th><th>本人TEL</th><th>アレルギー</th><th>操作</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function showUserDetail(no){
+  const u=users.find(x=>x.no===no); if(!u) return;
+  const pane=document.getElementById('userDetailPane');
+  if(!pane) return;
+  const al=u.allergy==='あり'?`<span style="color:var(--red);font-weight:700;">あり</span>　${escHtml(u.allergydetail||'')}`:' なし';
+  pane.style.display='block';
+  pane.innerHTML=`
+  <div style="background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,var(--a-accent2),var(--a-accent));padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;">${escHtml(u.name.charAt(0))}</div>
+        <div><div style="color:#fff;font-weight:700;font-size:15px;">${escHtml(u.name.replace('　',' '))}</div>
+        <div style="color:rgba(255,255,255,.75);font-size:12px;">No.${u.no}　${escHtml(u.dis||'')}${u.disname?' / '+escHtml(u.disname):''}</div></div>
+      </div>
+      <button onclick="document.getElementById('userDetailPane').style.display='none'" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;">✕ 閉じる</button>
+    </div>
+    <div style="padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="udet-box">
+        <div class="udet-title">📞 連絡先</div>
+        <div class="udet-row"><span class="udet-lbl">本人電話</span><span>${escHtml(u.tel||'－')}</span></div>
+        <div class="udet-row"><span class="udet-lbl">緊急連絡先</span><span>${escHtml(u.emgname||'－')}</span></div>
+        <div class="udet-row"><span class="udet-lbl">緊急TEL</span><span>${escHtml(u.emgtel||'－')}</span></div>
+        <div class="udet-row"><span class="udet-lbl">自宅住所</span><span style="word-break:break-all;">${escHtml(u.address||'－')}</span></div>
+      </div>
+      <div class="udet-box">
+        <div class="udet-title">📅 通所情報</div>
+        <div class="udet-row"><span class="udet-lbl">通所方法</span><span>${escHtml(u.tr||'－')}</span></div>
+        <div class="udet-row"><span class="udet-lbl">算定日数</span><span>${escHtml(u.lim||'－')}</span></div>
+        <div class="udet-row"><span class="udet-lbl">目標日数</span><span>${u.tgt||'－'}日</span></div>
+        <div class="udet-row"><span class="udet-lbl">契約日</span><span>${u.contract||'－'}</span></div>
+      </div>
+      <div class="udet-box" style="grid-column:1/-1;">
+        <div class="udet-title">🏢 関係機関情報</div>
+        ${(u.agencies&&u.agencies.length?u.agencies:[]).map((ag,i)=>`
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:11px;font-weight:700;color:var(--gray);">機関${i+1}　</span>
+            <span style="font-size:12px;">${escHtml(ag.agency||'')} ${ag.agstaff?'／ 担当：'+escHtml(ag.agstaff):''} ${ag.agtel?'／ TEL：'+escHtml(ag.agtel):''}</span>
+          </div>`).join('')||'<span style="font-size:12px;color:var(--gray);">未登録</span>'}
+      </div>
+      <div class="udet-box">
+        <div class="udet-title">🍽️ 食事・アレルギー</div>
+        <div class="udet-row"><span class="udet-lbl">アレルギー</span><span>${al}</span></div>
+        <div class="udet-row"><span class="udet-lbl">食事注意点</span><span style="word-break:break-all;">${escHtml(u.mealnote||'なし')}</span></div>
+      </div>
+    </div>
+  </div>`;
+}
+let _editingUserNo = null;
+function openAddUserModal(){
+  _editingUserNo=null;
+  document.getElementById('uemTitle').textContent='利用者を追加';
+  document.getElementById('uemDelBtn').style.display='none';
+  const fields=['name','disname','tel','emgname','emgtel','address','allergydetail','mealnote','carIn','carOut','pickupTime','dropTime','orderIn','orderOut','routeName'];
+  [1,2,3,4].forEach(i=>['agency','agstaff','agtel'].forEach(f=>{const el=document.getElementById('uem-'+f+i);if(el)el.value='';}));
+  document.getElementById('uem-no').value=Math.max(0,...users.map(u=>u.no))+1;
+  fields.forEach(f=>document.getElementById('uem-'+f).value='');
+  document.getElementById('uem-dis').value='身体';
+  document.getElementById('uem-transport').value='送迎';
+  document.getElementById('uem-limit').value='月の日数ー8日';
+  document.getElementById('uem-target').value='';
+  document.getElementById('uem-allergy').value='なし';
+  document.getElementById('uem-contract').value='';
+  document.getElementById('userEditModal').classList.add('open');
+}
+function openEditUserModal(no){
+  const u=users.find(x=>x.no===no); if(!u) return;
+  _editingUserNo=no;
+  document.getElementById('uemTitle').textContent='利用者を編集';
+  document.getElementById('uemDelBtn').style.display='block';
+  document.getElementById('uem-no').value=u.no;
+  document.getElementById('uem-name').value=u.name||'';
+  document.getElementById('uem-dis').value=u.dis||'身体';
+  document.getElementById('uem-disname').value=u.disname||'';
+  document.getElementById('uem-transport').value=u.tr||'送迎';
+  document.getElementById('uem-limit').value=u.lim||'月の日数ー8日';
+  document.getElementById('uem-target').value=u.tgt||'';
+  document.getElementById('uem-contract').value=u.contract||'';
+  document.getElementById('uem-tel').value=u.tel||'';
+  document.getElementById('uem-emgname').value=u.emgname||'';
+  document.getElementById('uem-emgtel').value=u.emgtel||'';
+  document.getElementById('uem-address').value=u.address||'';
+  [1,2,3,4].forEach(i=>{
+    const ag=u.agencies&&u.agencies[i-1]||{};
+    const e1=document.getElementById('uem-agency'+i);
+    const e2=document.getElementById('uem-agstaff'+i);
+    const e3=document.getElementById('uem-agtel'+i);
+    if(e1)e1.value=ag.agency||'';
+    if(e2)e2.value=ag.agstaff||'';
+    if(e3)e3.value=ag.agtel||'';
+  });
+  document.getElementById('uem-allergy').value=u.allergy||'なし';
+  document.getElementById('uem-allergydetail').value=u.allergydetail||'';
+  document.getElementById('uem-mealnote').value=u.mealnote||'';
+  document.getElementById('uem-routeName').value=u.routeName||'';
+  document.getElementById('uem-carIn').value=u.carIn||'';
+  document.getElementById('uem-carOut').value=u.carOut||'';
+  document.getElementById('uem-pickupTime').value=u.pickupTime||'';
+  document.getElementById('uem-dropTime').value=u.dropTime||'';
+  document.getElementById('uem-orderIn').value=u.orderIn||'';
+  document.getElementById('uem-orderOut').value=u.orderOut||'';
+  document.getElementById('userEditModal').classList.add('open');
+}
+function closeUserEditModal(){document.getElementById('userEditModal').classList.remove('open');}
+function saveUserEdit(){
+  const no=Number(document.getElementById('uem-no').value);
+  const name=document.getElementById('uem-name').value.trim();
+  if(!name){alert('名前を入力してください');return;}
+  if(!no){alert('NOを入力してください');return;}
+  const fields={
+    no,name,
+    dis:document.getElementById('uem-dis').value,
+    disname:document.getElementById('uem-disname').value.trim(),
+    tr:document.getElementById('uem-transport').value,
+    lim:document.getElementById('uem-limit').value,
+    tgt:Number(document.getElementById('uem-target').value)||0,
+    contract:document.getElementById('uem-contract').value,
+    tel:document.getElementById('uem-tel').value.trim(),
+    emgname:document.getElementById('uem-emgname').value.trim(),
+    emgtel:document.getElementById('uem-emgtel').value.trim(),
+    address:document.getElementById('uem-address').value.trim(),
+    agencies:[1,2,3,4].map(i=>({
+      agency:(document.getElementById('uem-agency'+i)||{value:''}).value.trim(),
+      agstaff:(document.getElementById('uem-agstaff'+i)||{value:''}).value.trim(),
+      agtel:(document.getElementById('uem-agtel'+i)||{value:''}).value.trim(),
+    })).filter(a=>a.agency||a.agstaff||a.agtel),
+    allergy:document.getElementById('uem-allergy').value,
+    allergydetail:document.getElementById('uem-allergydetail').value.trim(),
+    mealnote:document.getElementById('uem-mealnote').value.trim(),
+    routeName:document.getElementById('uem-routeName').value.trim(),
+    carIn:document.getElementById('uem-carIn').value.trim(),
+    carOut:document.getElementById('uem-carOut').value.trim(),
+    pickupTime:document.getElementById('uem-pickupTime').value,
+    dropTime:document.getElementById('uem-dropTime').value,
+    orderIn:Number(document.getElementById('uem-orderIn').value)||99,
+    orderOut:Number(document.getElementById('uem-orderOut').value)||99,
+  };
+  if(_editingUserNo===null){
+    if(users.find(u=>u.no===no)){alert('そのNOは既に使用されています');return;}
+    users.push(fields);
+    users.sort((a,b)=>a.no-b.no);
+    showToast('✅ 利用者を追加しました');
+  } else {
+    const idx=users.findIndex(x=>x.no===_editingUserNo);
+    if(idx>=0) users[idx]=fields;
+    showToast('✅ 利用者情報を更新しました');
+  }
+  persist(); closeUserEditModal(); renderUserMgmt(); renderAList(getFiltAUsers()); renderUDropdown(users);
+}
+let _deleteNo=null;
+function confirmDeleteUser(no){
+  const u=users.find(x=>x.no===no); if(!u) return;
+  if(!confirm(`「${u.name.replace('　',' ')}」を削除しますか？\nこの利用者のスケジュールデータも削除されます。`)) return;
+  deleteUserByNo(no);
+}
+function deleteUser(){
+  if(_editingUserNo!==null) {closeUserEditModal(); confirmDeleteUser(_editingUserNo);}
+}
+function deleteUserByNo(no){
+  users=users.filter(u=>u.no!==no);
+  Object.keys(scheduleData).filter(k=>k.startsWith(no+'_')).forEach(k=>delete scheduleData[k]);
+  persist(); renderUserMgmt(); renderAList(getFiltAUsers()); showToast('🗑️ 削除しました');
+}
+
+/* ===== CSV EXPORT ===== */
+function exportAllCSV(){
+  const total=dim(2026,5);
+  const wDays=[];
+  for(let d=1;d<=total;d++) if(!closed(2026,5,d)) wDays.push(d);
+  const headers=['NO','利用者名','障害種別','通所方法',...wDays.map(d=>`5/${d}(${DOW_NAMES[dow(2026,5,d)]})`),'通所日数','昼食あり','送迎日数'];
+  const rows=[headers.join(',')];
+  users.forEach(u=>{
+    let t=0,m=0,p=0;
+    const row=[u.no,`"${u.name}"`,u.dis,u.tr];
+    wDays.forEach(d=>{const v=gv(u.no,2026,5,d);row.push(`"${v}"`);if(isTsuu(v)){t++;if(u.tr==='送迎')p++;}if(isMeal(v))m++;});
+    row.push(t,m,p);
+    rows.push(row.join(','));
+  });
+  dlCSV('\uFEFF'+rows.join('\n'),'通所予定表_2026年5月.csv');
+}
+function exportSingleCSV(){
+  if(!aUser) return;
+  const total=dim(aYear,aMonth);
+  const rows=[['日付','曜日','区分','昼食','送迎'].join(',')];
+  for(let d=1;d<=total;d++){
+    if(closed(aYear,aMonth,d)) continue;
+    const v=gv(aUser.no,aYear,aMonth,d);
+    rows.push([`${aMonth}/${d}`,DOW_NAMES[dow(aYear,aMonth,d)],`"${v}"`,isMeal(v)?'あり':'',aUser.tr==='送迎'&&isTsuu(v)?'あり':''].join(','));
+  }
+  dlCSV('\uFEFF'+rows.join('\n'),`通所予定_${aUser.name.replace(/\s/g,'')}_${aYear}年${aMonth}月.csv`);
+  showToast('📥 CSV出力しました');
+}
+function dlCSV(content,filename){
+  const b=new Blob([content],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=filename; a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('📥 CSV出力しました');
+}
+
+/* ===== STAFF & ROUTE MANAGEMENT ===== */
+let staffList = [];   // [{id, name, role, tel, license, note}]
+let routeList = [];   // [{id, name, area, car, color, staffInId, staffOutId, depTimeIn, depTimeOut, note}]
+let _editStaffId = null;
+let _editRouteId = null;
+
+const DEFAULT_ROUTES_MAIN=[
+  {id:1,name:'吹田西',area:'吹田西エリア',car:'新セレナ',color:'#3b82f6',staffInId:null,staffOutId:null,depTimeIn:'09:00',depTimeOut:'16:00',note:''},
+  {id:2,name:'吹田東',area:'吹田東エリア',car:'旧セレナ',color:'#10b981',staffInId:null,staffOutId:null,depTimeIn:'09:00',depTimeOut:'16:00',note:''},
+  {id:3,name:'摂津',area:'摂津エリア',car:'茶シエンタ',color:'#f59e0b',staffInId:null,staffOutId:null,depTimeIn:'09:00',depTimeOut:'16:00',note:''},
+  {id:4,name:'東淀川',area:'東淀川エリア',car:'白シエンタ',color:'#ef4444',staffInId:null,staffOutId:null,depTimeIn:'09:00',depTimeOut:'16:00',note:''},
+];
+function loadStaffRoute(){
+  try{
+    const s=localStorage.getItem('sys_staff'); if(s) staffList=JSON.parse(s);
+    const r=localStorage.getItem('sys_routes');
+    routeList = r ? JSON.parse(r) : JSON.parse(JSON.stringify(DEFAULT_ROUTES_MAIN));
+  }catch(e){routeList=JSON.parse(JSON.stringify(DEFAULT_ROUTES_MAIN));}
+}
+function persistStaffRoute(){
+  localStorage.setItem('sys_staff', JSON.stringify(staffList));
+  localStorage.setItem('sys_routes', JSON.stringify(routeList));
+  if(window._firebaseReady){
+    try{
+      const staffObj={};  staffList.forEach((s,i)=>staffObj[s.id||i]=s);
+      const routeObj={};  routeList.forEach((r,i)=>routeObj[r.id||i]=r);
+      window._set(window._ref(window._db,'sys_staff'), staffObj);
+      window._set(window._ref(window._db,'sys_routes'), routeObj);
+    }catch(e){ console.warn('Firebase staffRoute save error:',e); }
+  }
+}
+function nextId(list){ return list.length ? Math.max(...list.map(x=>x.id))+1 : 1; }
+
+/* --- Staff Modal --- */
+function openAddStaffModal(){
+  _editStaffId=null;
+  document.getElementById('staffModalTitle').textContent='スタッフを追加';
+  document.getElementById('staffDelBtn').style.display='none';
+  ['name','role','tel','license','note'].forEach(f=>document.getElementById('sm-'+f).value='');
+  document.getElementById('staffModal').classList.add('open');
+  setTimeout(()=>document.getElementById('sm-name').focus(),80);
+}
+function openEditStaffModal(id){
+  const s=staffList.find(x=>x.id===id); if(!s) return;
+  _editStaffId=id;
+  document.getElementById('staffModalTitle').textContent='スタッフを編集';
+  document.getElementById('staffDelBtn').style.display='block';
+  document.getElementById('sm-name').value=s.name||'';
+  document.getElementById('sm-role').value=s.role||'';
+  document.getElementById('sm-tel').value=s.tel||'';
+  document.getElementById('sm-license').value=s.license||'';
+  document.getElementById('sm-note').value=s.note||'';
+  document.getElementById('staffModal').classList.add('open');
+}
+function closeStaffModal(){ document.getElementById('staffModal').classList.remove('open'); }
+function saveStaff(){
+  const name=document.getElementById('sm-name').value.trim();
+  if(!name){alert('スタッフ名を入力してください');return;}
+  const obj={
+    id:_editStaffId??nextId(staffList), name,
+    role:document.getElementById('sm-role').value.trim(),
+    tel:document.getElementById('sm-tel').value.trim(),
+    license:document.getElementById('sm-license').value.trim(),
+    note:document.getElementById('sm-note').value.trim(),
+  };
+  if(_editStaffId===null){ staffList.push(obj); showToast('✅ スタッフを追加しました'); }
+  else { const i=staffList.findIndex(x=>x.id===_editStaffId); if(i>=0) staffList[i]=obj; showToast('✅ スタッフ情報を更新しました'); }
+  persistStaffRoute(); closeStaffModal(); renderStaffTable(); populateStaffSelects();
+}
+function deleteStaff(){
+  if(!confirm('このスタッフを削除しますか？')) return;
+  staffList=staffList.filter(x=>x.id!==_editStaffId);
+  persistStaffRoute(); closeStaffModal(); renderStaffTable(); populateStaffSelects(); showToast('🗑️ 削除しました');
+}
+function renderStaffTable(){
+  const wrap=document.getElementById('staffTableWrap'); if(!wrap) return;
+  if(!staffList.length){
+    wrap.innerHTML='<p style="color:var(--gray);padding:16px;text-align:center;">スタッフが登録されていません</p>';return;
+  }
+  const rows=staffList.map(s=>`<tr>
+    <td style="font-weight:500;">${escHtml(s.name)}</td>
+    <td>${escHtml(s.role||'－')}</td>
+    <td>${escHtml(s.tel||'－')}</td>
+    <td>${escHtml(s.license||'－')}</td>
+    <td><button class="btn-edit" onclick="openEditStaffModal(${s.id})">編集</button></td>
+  </tr>`).join('');
+  wrap.innerHTML=`<table class="user-mgmt-table">
+    <thead><tr><th>名前</th><th>役職</th><th>電話</th><th>免許・資格</th><th>操作</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+/* --- Route Modal --- */
+function populateStaffSelects(){
+  ['rm-staffIn','rm-staffOut'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">（未定）</option>'+staffList.map(s=>`<option value="${s.id}" ${cur==s.id?'selected':''}>${escHtml(s.name)}</option>`).join('');
+  });
+}
+function openAddRouteModal(){
+  _editRouteId=null;
+  document.getElementById('routeModalTitle').textContent='ルートを追加';
+  document.getElementById('routeDelBtn').style.display='none';
+  ['name','area','car','depTimeIn','depTimeOut','note'].forEach(f=>document.getElementById('rm-'+f).value='');
+  document.getElementById('rm-color').value='#3b82f6';
+  populateStaffSelects();
+  document.getElementById('rm-staffIn').value='';
+  document.getElementById('rm-staffOut').value='';
+  document.getElementById('routeModal').classList.add('open');
+}
+function openEditRouteModal(id){
+  const r=routeList.find(x=>x.id===id); if(!r) return;
+  _editRouteId=id;
+  document.getElementById('routeModalTitle').textContent='ルートを編集';
+  document.getElementById('routeDelBtn').style.display='block';
+  document.getElementById('rm-name').value=r.name||'';
+  document.getElementById('rm-area').value=r.area||'';
+  document.getElementById('rm-car').value=r.car||'';
+  document.getElementById('rm-color').value=r.color||'#3b82f6';
+  document.getElementById('rm-depTimeIn').value=r.depTimeIn||'';
+  document.getElementById('rm-depTimeOut').value=r.depTimeOut||'';
+  document.getElementById('rm-note').value=r.note||'';
+  populateStaffSelects();
+  document.getElementById('rm-staffIn').value=r.staffInId||'';
+  document.getElementById('rm-staffOut').value=r.staffOutId||'';
+  document.getElementById('routeModal').classList.add('open');
+}
+function closeRouteModal(){ document.getElementById('routeModal').classList.remove('open'); }
+function saveRoute(){
+  const name=document.getElementById('rm-name').value.trim();
+  if(!name){alert('ルート名を入力してください');return;}
+  const obj={
+    id:_editRouteId??nextId(routeList), name,
+    area:document.getElementById('rm-area').value.trim(),
+    car:document.getElementById('rm-car').value.trim(),
+    color:document.getElementById('rm-color').value,
+    staffInId:Number(document.getElementById('rm-staffIn').value)||null,
+    staffOutId:Number(document.getElementById('rm-staffOut').value)||null,
+    depTimeIn:document.getElementById('rm-depTimeIn').value,
+    depTimeOut:document.getElementById('rm-depTimeOut').value,
+    note:document.getElementById('rm-note').value.trim(),
+  };
+  if(_editRouteId===null){ routeList.push(obj); showToast('✅ ルートを追加しました'); }
+  else { const i=routeList.findIndex(x=>x.id===_editRouteId); if(i>=0) routeList[i]=obj; showToast('✅ ルート情報を更新しました'); }
+  persistStaffRoute(); closeRouteModal(); renderRouteTable();
+}
+function deleteRoute(){
+  if(!confirm('このルートを削除しますか？')) return;
+  routeList=routeList.filter(x=>x.id!==_editRouteId);
+  persistStaffRoute(); closeRouteModal(); renderRouteTable(); showToast('🗑️ 削除しました');
+}
+function renderRouteTable(){
+  const wrap=document.getElementById('routeTableWrap'); if(!wrap) return;
+  if(!routeList.length){
+    wrap.innerHTML='<p style="color:var(--gray);padding:16px;text-align:center;">ルートが登録されていません</p>';return;
+  }
+  const rows=routeList.map(r=>{
+    const sIn=staffList.find(s=>s.id===r.staffInId);
+    const sOut=staffList.find(s=>s.id===r.staffOutId);
+    // Count users on this route
+    const cnt=users.filter(u=>u.routeName===r.name).length;
+    return `<tr>
+      <td><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${r.color};margin-right:6px;"></span><strong>${escHtml(r.name)}</strong></td>
+      <td>${escHtml(r.area||'－')}</td>
+      <td>${escHtml(r.car||'－')}</td>
+      <td>${sIn?escHtml(sIn.name):'未定'}</td>
+      <td>${sOut?escHtml(sOut.name):'未定'}</td>
+      <td style="text-align:center;font-weight:700;color:var(--a-accent);">${cnt}名</td>
+      <td><button class="btn-edit" onclick="openEditRouteModal(${r.id})">編集</button></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML=`<table class="user-mgmt-table">
+    <thead><tr><th>ルート名</th><th>エリア</th><th>車両</th><th>担当(行き)</th><th>担当(帰り)</th><th>利用者数</th><th>操作</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+function renderStaffMgmt(){
+  renderStaffTable();
+  renderRouteTable();
+}
+
+/* ===== SHUTTLE STORAGE HELPERS ===== */
+function _shKey(prefix, ...parts){ return 'sys_sh_or_'+parts.join('_')+'_'+prefix; }
+function shGetTime(dk, no, dir){
+  return localStorage.getItem(_shKey('time', dk, no, dir)) || null;
+}
+function shSetTime(dk, no, dir, val){
+  if(!val) localStorage.removeItem(_shKey('time', dk, no, dir));
+  else localStorage.setItem(_shKey('time', dk, no, dir), val);
+}
+function shGetActual(dk, no, dir){
+  return localStorage.getItem(_shKey('actual', dk, no, dir)) === '1';
+}
+function shSetActual(dk, no, dir, v){
+  localStorage.setItem(_shKey('actual', dk, no, dir), v ? '1' : '0');
+}
+function shGetDriver(dk, routeName, dir){
+  return localStorage.getItem(_shKey('driver', dk, routeName, dir)) || '';
+}
+function shSetDriver(dk, routeName, dir, val){
+  localStorage.setItem(_shKey('driver', dk, routeName, dir), val);
+}
+function shDK(y, m, d){ return y+'-'+m+'-'+d; }
+
+/* ===== SHUTTLE ===== */
+let shDate = new Date(2026,4,7);
+let shYear = 2026, shMonth = 5;
+let shActiveFilter = 'all';
+
+function initShuttle(){
+  updateShDayLabel();
+  document.getElementById('shMonthLabel').textContent = shYear+'年'+shMonth+'月';
+  renderShuttle();
+}
+
+function shChangeDay(dir){
+  shDate.setDate(shDate.getDate()+dir);
+  shYear=shDate.getFullYear(); shMonth=shDate.getMonth()+1;
+  updateShDayLabel(); renderShuttle();
+}
+function shMChangeMonth(dir){
+  shMonth+=dir;
+  if(shMonth>12){shMonth=1;shYear++;} if(shMonth<1){shMonth=12;shYear--;}
+  document.getElementById('shMonthLabel').textContent=shYear+'年'+shMonth+'月';
+  renderShuttle();
+}
+function updateShDayLabel(){
+  const y=shDate.getFullYear(),m=shDate.getMonth()+1,d=shDate.getDate();
+  const dw=['日','月','火','水','木','金','土'][shDate.getDay()];
+  document.getElementById('shDayLabel').textContent=y+'年'+m+'月'+d+'日（'+dw+'）';
+}
+
+function getRouteUsers(routeName){
+  return users.filter(u=>u.tr==='送迎'&&(u.routeName||'未設定')===routeName);
+}
+function getShuttleUsers(y,m,d){
+  return users.filter(u=>u.tr==='送迎'&&isTsuu(gv(u.no,y,m,d)));
+}
+function filterShUsers(uList){
+  if(shActiveFilter==='all') return uList;
+  const rname=shActiveFilter.startsWith('route:')?shActiveFilter.slice(6):null;
+  if(rname) return uList.filter(u=>(u.routeName||'未設定')===rname);
+  return uList;
+}
+function getAllShRoutes(){
+  if(routeList.length) return routeList;
+  const names=new Set();
+  users.forEach(u=>{if(u.tr==='送迎') names.add(u.routeName||'未設定');});
+  return Array.from(names).map(n=>({name:n,color:'#94a3b8',car:'',staffInId:null,staffOutId:null,depTimeIn:'',depTimeOut:''}));
+}
+
+function renderFilterTabs(){
+  const tabsEl=document.getElementById('shCarTabs');
+  if(!tabsEl) return;
+  const routes=getAllShRoutes();
+  const tabs=[{id:'all',label:'🚐 全ルート',color:'#64748b'},...routes.map(r=>({id:'route:'+r.name,label:r.name,color:r.color||'#94a3b8'}))];
+  tabsEl.innerHTML=tabs.map(t=>`
+    <button class="sh-car-tab ${shActiveFilter===t.id?'active':''}"
+      style="${shActiveFilter===t.id?'background:'+t.color+';border-color:'+t.color+';':''}"
+      onclick="shActiveFilter='${t.id.replace(/'/g,"\'")}';renderShuttle();">
+      ${t.label}
+    </button>`).join('');
+}
+
+function renderShuttle(){
+  const mode=document.getElementById('shViewMode').value;
+  document.getElementById('shDailyNav').style.display=(mode==='daily'||mode==='route')?'flex':'none';
+  document.getElementById('shMonthNav').style.display=mode==='monthly'?'block':'none';
+  renderFilterTabs();
+  if(mode==='daily') renderShuttleDaily();
+  else if(mode==='monthly') renderShuttleMonthly();
+  else renderShuttleRoute();
+}
+
+function renderShuttleDaily(){
+  const y=shDate.getFullYear(),m=shDate.getMonth()+1,d=shDate.getDate();
+  const dk=shDK(y,m,d);
+  const routes=getAllShRoutes();
+  const filteredRoutes=shActiveFilter==='all'?routes:routes.filter(r=>'route:'+r.name===shActiveFilter);
+
+  if(!filteredRoutes.length){
+    document.getElementById('shContent').innerHTML=
+      '<div class="sh-empty">ルートが登録されていません<br><small>スタッフ管理タブからルートを登録してください</small></div>';
+    return;
+  }
+
+  // Staff select options helper
+  const staffOpts=(selectedId)=>'<option value="">（未定）</option>'+
+    staffList.map(s=>`<option value="${s.id}" ${s.id===selectedId?'selected':''}>${escHtml(s.name)}</option>`).join('');
+
+  let html='<div id="shPrintArea">';
+  filteredRoutes.forEach(route=>{
+    const color=route.color||'#94a3b8';
+    const routeKey=route.name;
+
+    // Per-day driver (override or default from route master)
+    const driverInId  = Number(shGetDriver(dk,routeKey,'in'))  || route.staffInId  || null;
+    const driverOutId = Number(shGetDriver(dk,routeKey,'out')) || route.staffOutId || null;
+    const staffIn  = staffList.find(s=>s.id===driverInId);
+    const staffOut = staffList.find(s=>s.id===driverOutId);
+
+    const members   = getRouteUsers(routeKey);
+    const inMembers = [...members].sort((a,b)=>(a.orderIn ||99)-(b.orderIn ||99));
+    const outMembers= [...members].sort((a,b)=>(a.orderOut||99)-(b.orderOut||99));
+    const attendCnt = members.filter(u=>isTsuu(gv(u.no,y,m,d))).length;
+
+    // Build one row per user per direction
+    const buildRow=(u,i,dir)=>{
+      const v       = gv(u.no,y,m,d);
+      const attend  = isTsuu(v);
+      const absent  = v==='欠';
+      const baseTime= dir==='in'?u.pickupTime:u.dropTime;
+      const overTime= shGetTime(dk,u.no,dir);
+      const dispTime= overTime||baseTime||'';
+      const changed = !!(overTime && overTime!==baseTime);
+      const actual  = shGetActual(dk,u.no,dir);
+      const rowStyle= absent?'opacity:.35;background:#fff5f5;':!v?'opacity:.5;':'';
+
+      const badge = !v
+        ? '<span style="font-size:10px;color:var(--gray);">未入力</span>'
+        : absent ? '<span class="sc sc-kyu">欠</span>'
+        : `<span class="sc ${scClass(v)}">${v}</span>${isMeal(v)?'<span style="font-size:10px;"> 🍱</span>':''}`;
+
+      return `<tr style="${rowStyle}">
+        <td style="text-align:center;width:32px;">
+          <span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;
+            background:${attend?color+'22':'#f1f5f9'};border:2px solid ${attend?color:'#e2e8f0'};color:${attend?color:'#94a3b8'};">${i+1}</span>
+        </td>
+        <td style="font-size:13px;font-weight:${attend?'600':'400'};min-width:90px;">${escHtml(u.name.replace('　',' '))}</td>
+        <td style="width:100px;">
+          <input type="time" value="${escHtml(dispTime)}"
+            style="width:88px;padding:3px 5px;border:1.5px solid ${changed?'var(--amber)':'var(--border)'};border-radius:5px;font-size:12px;font-family:inherit;background:${changed?'#fffbeb':'#fff'};color:${changed?'var(--amber)':'var(--text)'};"
+            title="クリックで時刻変更（${changed?'基本:'+baseTime:'基本時刻'}）"
+            onchange="shSetTime('${dk}',${u.no},'${dir}',this.value);renderShuttleDaily();">
+          ${changed?`<div style="font-size:9px;color:var(--gray);margin-top:1px;">基本:${baseTime||'未'} <span style="cursor:pointer;color:var(--accent);text-decoration:underline;" onclick="shSetTime('${dk}',${u.no},'${dir}',null);renderShuttleDaily();">戻す</span></div>`:''}
+        </td>
+        <td style="width:68px;">${badge}</td>
+        <td style="width:36px;text-align:center;" class="no-print">
+          <input type="checkbox" ${actual?'checked':''}
+            style="width:16px;height:16px;cursor:pointer;accent-color:var(--green);"
+            title="送迎実施済み"
+            onchange="shSetActual('${dk}',${u.no},'${dir}',this.checked);this.closest('tr').style.textDecoration=this.checked?'line-through':'none';">
+        </td>
+      </tr>`;
+    };
+
+    const inRows  = inMembers.length  ? inMembers.map((u,i) =>buildRow(u,i,'in')).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:10px;color:var(--gray);font-size:12px;">メンバーなし</td></tr>';
+    const outRows = outMembers.length ? outMembers.map((u,i)=>buildRow(u,i,'out')).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:10px;color:var(--gray);font-size:12px;">メンバーなし</td></tr>';
+
+    html+=`<div class="sh-card" style="margin-bottom:14px;">
+      <!-- Card header -->
+      <div class="sh-card-head" style="background:${color}10;border-bottom:2px solid ${color};">
+        <span style="width:12px;height:12px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+        <h3 style="color:${color};font-size:15px;">${escHtml(routeKey)}</h3>
+        ${route.car?`<span style="font-size:12px;background:var(--amber-light);padding:2px 8px;border-radius:4px;color:var(--amber);">🚗 ${escHtml(route.car)}</span>`:''}
+        <span style="font-size:12px;color:var(--text2);margin-left:auto;">計${members.length}名／本日通所${attendCnt}名</span>
+      </div>
+
+      <!-- Left=行き  Right=帰り -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;">
+
+        <!-- 行き -->
+        <div style="border-right:1px solid var(--border);">
+          <div style="padding:7px 12px;background:#eff6ff;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:13px;color:var(--a-accent);">🌅 行き（お迎え順）</span>
+            ${route.depTimeIn?`<span style="font-size:11px;background:var(--u-light);padding:2px 7px;border-radius:4px;color:var(--u-accent2);">出発 ${route.depTimeIn}</span>`:''}
+            <!-- Driver select 行き -->
+            <select style="font-size:11px;padding:3px 7px;border:1.5px solid var(--border);border-radius:5px;font-family:inherit;background:#fff;margin-left:auto;"
+              title="本日の行き担当ドライバー"
+              onchange="shSetDriver('${dk}','${escHtml(routeKey).replace(/'/g,"\\'")}','in',Number(this.value)||'');renderShuttleDaily();">
+              ${staffOpts(driverInId)}
+            </select>
+          </div>
+          ${staffIn?`<div style="padding:4px 12px;font-size:11px;background:#f0fdf4;border-bottom:1px solid var(--border);">👨‍✈️ 担当：<strong>${escHtml(staffIn.name)}</strong></div>`:''}
+          <table class="sh-table">
+            <thead><tr>
+              <th style="width:32px;">順</th><th>利用者名</th>
+              <th style="width:100px;">お迎え時刻</th><th style="width:68px;">区分</th>
+              <th style="width:36px;" class="no-print">✓</th>
+            </tr></thead>
+            <tbody>${inRows}</tbody>
+          </table>
+        </div>
+
+        <!-- 帰り -->
+        <div>
+          <div style="padding:7px 12px;background:#f0fdf4;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-weight:700;font-size:13px;color:var(--green);">🌇 帰り（お送り順）</span>
+            ${route.depTimeOut?`<span style="font-size:11px;background:var(--green-light);padding:2px 7px;border-radius:4px;color:var(--green);">出発 ${route.depTimeOut}</span>`:''}
+            <!-- Driver select 帰り -->
+            <select style="font-size:11px;padding:3px 7px;border:1.5px solid var(--border);border-radius:5px;font-family:inherit;background:#fff;margin-left:auto;"
+              title="本日の帰り担当ドライバー"
+              onchange="shSetDriver('${dk}','${escHtml(routeKey).replace(/'/g,"\\'")}','out',Number(this.value)||'');renderShuttleDaily();">
+              ${staffOpts(driverOutId)}
+            </select>
+          </div>
+          ${staffOut?`<div style="padding:4px 12px;font-size:11px;background:#f0fdf4;border-bottom:1px solid var(--border);">👨‍✈️ 担当：<strong>${escHtml(staffOut.name)}</strong></div>`:''}
+          <table class="sh-table">
+            <thead><tr>
+              <th style="width:32px;">順</th><th>利用者名</th>
+              <th style="width:100px;">お送り時刻</th><th style="width:68px;">区分</th>
+              <th style="width:36px;" class="no-print">✓</th>
+            </tr></thead>
+            <tbody>${outRows}</tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html+='</div>';
+  document.getElementById('shContent').innerHTML=html;
+}
+
+function renderShuttleMonthly(){
+  const total=dim(shYear,shMonth);
+  const days=Array.from({length:total},(_,i)=>i+1);
+  const DOW_N=['日','月','火','水','木','金','土'];
+  const routes=getAllShRoutes();
+  const filteredRoutes=shActiveFilter==='all'?routes:routes.filter(r=>'route:'+r.name===shActiveFilter);
+
+  // Per-route members
+  const routeMembers={};
+  filteredRoutes.forEach(r=>{ routeMembers[r.name]=getRouteUsers(r.name); });
+
+  // Day headers
+  const thDays=days.map(d=>{
+    const dw=dow(shYear,shMonth,d);
+    const col=dw===0?'color:#dc2626':dw===6?'color:#0369a1':'';
+    return `<th style="min-width:24px;padding:4px 2px;text-align:center;${col}">${d}<br><span style="font-size:9px;font-weight:400;">${DOW_N[dw]}</span></th>`;
+  }).join('');
+
+  // Build rows: one section per route
+  let sectionsHtml='';
+  filteredRoutes.forEach(route=>{
+    const color=route.color||'#94a3b8';
+    const members=routeMembers[route.name]||[];
+    if(!members.length) return;
+
+    // route header row
+    const routeHeaderCells=days.map(d=>{
+      const cnt=members.filter(u=>isTsuu(gv(u.no,shYear,shMonth,d))).length;
+      return `<td style="background:${color}18;text-align:center;font-weight:700;font-size:11px;color:${color};">${cnt||'－'}</td>`;
+    }).join('');
+
+    // per-user rows
+    const userRows=members.map(u=>{
+      const cells=days.map(d=>{
+        const v=gv(u.no,shYear,shMonth,d);
+        const dk=shDK(shYear,shMonth,d);
+        const overIn=shGetTime(dk,u.no,'in');
+        const overOut=shGetTime(dk,u.no,'out');
+        const tIn=overIn||u.pickupTime||'';
+        const tOut=overOut||u.dropTime||'';
+        const actualIn=shGetActual(dk,u.no,'in');
+        const actualOut=shGetActual(dk,u.no,'out');
+        if(!v) return '<td style="background:#f9f9f9;"></td>';
+        if(v==='欠') return '<td style="background:#fff5f5;text-align:center;"><span style="font-size:10px;color:var(--red);">欠</span></td>';
+        if(isTsuu(v)){
+          return `<td style="padding:2px 3px;background:#f0f9ff;">
+            <div style="font-size:9px;color:var(--a-accent);${actualIn?'text-decoration:line-through;':''}">${tIn?'行:'+tIn:'行'}</div>
+            <div style="font-size:9px;color:var(--green);${actualOut?'text-decoration:line-through;':''}">${tOut?'帰:'+tOut:'帰'}</div>
+          </td>`;
+        }
+        return `<td style="text-align:center;"><span style="font-size:9px;">${v}</span></td>`;
+      }).join('');
+      return `<tr>
+        <td style="padding:4px 8px;font-size:12px;font-weight:500;">${escHtml(u.name.replace('　',' '))}</td>
+        <td style="font-size:10px;text-align:center;">${escHtml(u.pickupTime||'－')}</td>
+        <td style="font-size:10px;text-align:center;">${escHtml(u.dropTime||'－')}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
+
+    sectionsHtml+=`
+      <!-- Route: ${escHtml(route.name)} -->
+      <tr style="background:${color}18;">
+        <td colspan="3" style="padding:6px 10px;font-weight:700;font-size:13px;color:${color};">
+          <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;margin-right:6px;vertical-align:middle;"></span>
+          ${escHtml(route.name)} ${route.car?`🚗 ${escHtml(route.car)}`:''}
+        </td>
+        ${routeHeaderCells}
+      </tr>
+      ${userRows}
+      <tr style="height:6px;background:transparent;"><td colspan="${3+days.length}"></td></tr>`;
+  });
+
+  // Grand total row
+  const totalRow=days.map(d=>{
+    const cnt=users.filter(u=>u.tr==='送迎'&&isTsuu(gv(u.no,shYear,shMonth,d))&&filterShUsers([u]).length).length;
+    return `<td style="font-weight:700;color:var(--pink);text-align:center;font-size:11px;">${cnt||''}</td>`;
+  }).join('');
+
+  document.getElementById('shContent').innerHTML=`<div id="shPrintArea"><div style="overflow-x:auto;">
+    <table style="border-collapse:collapse;font-size:11px;width:100%;min-width:700px;">
+      <thead>
+        <tr style="background:#f0f4ff;">
+          <th style="text-align:left;padding:6px 10px;min-width:90px;">利用者</th>
+          <th style="width:54px;text-align:center;">行き</th>
+          <th style="width:54px;text-align:center;">帰り</th>
+          ${thDays}
+        </tr>
+      </thead>
+      <tbody>
+        ${sectionsHtml}
+        <tr style="background:#fff0f6;">
+          <td colspan="3" style="font-weight:700;color:var(--pink);padding:5px 10px;font-size:11px;">🚐 送迎人数合計</td>
+          ${totalRow}
+        </tr>
+      </tbody>
+    </table>
+  </div></div>`;
+}
+
+function renderShuttleRoute(){
+  const y=shDate.getFullYear(),m=shDate.getMonth()+1,d=shDate.getDate();
+  const routes=getAllShRoutes();
+  const targetRoutes=shActiveFilter==='all'?routes:routes.filter(r=>'route:'+r.name===shActiveFilter);
+  if(!routes.length){
+    document.getElementById('shContent').innerHTML=`<div class="sh-empty"><p>ルートが登録されていません</p><p style="margin-top:8px;"><button class="btn-a-save" style="font-size:12px;padding:7px 16px;" onclick="switchTopTab('staffmgmt')">ルートを登録する →</button></p></div>`;
+    return;
+  }
+  let html='<div id="shPrintArea">';
+  targetRoutes.forEach(route=>{
+    const color=route.color||'#94a3b8';
+    const members=getRouteUsers(route.name);
+    const attending=members.filter(u=>isTsuu(gv(u.no,y,m,d)));
+    const staffIn=staffList.find(s=>s.id===route.staffInId);
+    const staffOut=staffList.find(s=>s.id===route.staffOutId);
+    const inS=[...attending].sort((a,b)=>(a.orderIn||99)-(b.orderIn||99));
+    const outS=[...attending].sort((a,b)=>(a.orderOut||99)-(b.orderOut||99));
+    const bRow=(u,i,dir)=>{
+      const v=gv(u.no,y,m,d);
+      const t=dir==='in'?u.pickupTime:u.dropTime;
+      return `<tr><td style="text-align:center;font-weight:700;color:${color};">${i+1}</td>
+        <td style="font-weight:500;">${escHtml(u.name.replace('　',' '))}</td>
+        <td style="font-size:11px;color:var(--gray);">${escHtml(u.address||'')}</td>
+        <td>${t||'－'}</td><td><span class="sc ${scClass(v)}">${v}</span></td></tr>`;
+    };
+    html+=`<div class="sh-card" style="margin-bottom:16px;">
+      <div class="sh-card-head" style="background:${color}10;border-bottom:2px solid ${color};">
+        <span style="width:14px;height:14px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+        <h3 style="color:${color};">${escHtml(route.name)}</h3>
+        ${route.car?`<span style="font-size:12px;background:var(--amber-light);padding:2px 8px;border-radius:4px;color:var(--amber);">🚗 ${escHtml(route.car)}</span>`:''}
+        <span style="font-size:12px;color:var(--text2);margin-left:auto;">本日通所 ${attending.length}名 / 計${members.length}名</span>
+      </div>
+      <div class="sh-card-body">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          ${staffIn?`<span style="font-size:12px;background:#f0fdf4;padding:3px 10px;border-radius:20px;color:#065f46;">🌅行き：${escHtml(staffIn.name)}</span>`:''}
+          ${staffOut?`<span style="font-size:12px;background:#ede9fe;padding:3px 10px;border-radius:20px;color:#5b21b6;">🌇帰り：${escHtml(staffOut.name)}</span>`:''}
+        </div>
+        ${attending.length===0?`<div style="text-align:center;padding:14px;color:var(--gray);">本日の通所予定者なし（ルートメンバー ${members.length}名）</div>`:`
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div><div class="sh-section-label">🌅 行き</div>
+            <table class="sh-table"><thead><tr><th>順</th><th>利用者名</th><th>住所</th><th>時刻</th><th>区分</th></tr></thead>
+            <tbody>${inS.map((u,i)=>bRow(u,i,'in')).join('')}</tbody></table></div>
+          <div><div class="sh-section-label">🌇 帰り</div>
+            <table class="sh-table"><thead><tr><th>順</th><th>利用者名</th><th>住所</th><th>時刻</th><th>区分</th></tr></thead>
+            <tbody>${outS.map((u,i)=>bRow(u,i,'out')).join('')}</tbody></table></div>
+        </div>`}
+      </div>
+    </div>`;
+  });
+  html+='</div>';
+  document.getElementById('shContent').innerHTML=html;
+}
+
+function printShuttle(){
+  const area=document.getElementById('shPrintArea');
+  if(!area) return;
+  const mode=document.getElementById('shViewMode').value;
+  const dateLabel=mode==='monthly'?shYear+'年'+shMonth+'月':document.getElementById('shDayLabel').textContent;
+  document.getElementById('printTarget').innerHTML=`<div style="font-family:'Noto Sans JP',sans-serif;padding:20px;">
+    <h2 style="text-align:center;margin-bottom:4px;">🚐 送迎予定表</h2>
+    <p style="text-align:center;color:#666;margin-bottom:16px;">${escHtml(dateLabel)}</p>
+    ${area.innerHTML}</div>`;
+  window.print();
+}
+
+
+/* ===== INIT ===== */
+loadData();
+</script>
+</body>
+</html>
